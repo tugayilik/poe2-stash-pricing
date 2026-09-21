@@ -2,6 +2,20 @@
 
 A small Windows app that scans the special stash tabs of Path of Exile 2 (Currency, Essence, Runes...) on screen and prices the items with [poe.ninja](https://poe.ninja/docs/api). It shows the value of every tab and of your whole stash, and writes the prices over the items in the game.
 
+## Features
+
+- **One key to price a tab.** Open a stash tab and press F7. The app hovers every item, reads it the way you would (Ctrl+C in the game) and writes each stack's value over it: unit price × quantity, in Divine, Exalted or Chaos.
+- **Total stash value.** Every scanned tab keeps its last result, so the app always shows what each tab and your whole stash are worth, and updates the numbers when prices move.
+- **Finds the stash on its own.** No grid to draw and nothing to calibrate: the stash panel is found in a screenshot of the game, at any resolution (tested from 1280×720 to 3840×2160).
+- **Learns your tabs.** The first scan of a special tab remembers where its slots are, what it looks like and what it holds, and names it (Currency, Essence, Abyss...). After that the tab is recognised whenever you open it, even the look-alike Runes sub-tabs.
+- **Prices follow you around the stash.** Switch tabs and the overlay switches with you: a scanned tab shows its prices again without rescanning.
+- **Always current prices.** Prices come from poe.ninja at start and every 15 minutes. If poe.ninja is down or asks to slow down, the app keeps the last prices and tries again later. When prices changed a tab's value since you scanned it, the overlay says so (e.g. "tab value 189 → 201 div, +6.3%").
+- **Reads counts the game doesn't copy.** A few items (Simulacrum, Triskelion...) copy without a stack size; the app reads the number printed on the icon instead, using digits it learned from your other stacks.
+- **Accurate and quick.** Every saved slot is checked, touching items are split at their real borders, and a missed spot gets a second, slower look. A full Currency tab takes about 5 seconds.
+- **Your keys.** F7/F8 by default, rebindable to any function key or a Ctrl/Alt/Shift combination.
+- **Private by design.** Everything stays on your PC; only price lists are downloaded. See [Privacy and security](#privacy-and-security).
+- **Portable.** One small exe, no installer, runs on the .NET Framework that comes with Windows 10/11.
+
 ## Download
 
 **[⬇ Download the latest release](https://github.com/tugayilik/poe2-stash-pricing/releases/latest)**. Get `PoeStashPricer-vX.Y.Z.zip` under *Assets*, unzip it anywhere and run `PoeStashPricer.exe`.
@@ -10,7 +24,7 @@ No installation needed: it runs on the .NET Framework 4.8 that comes with Window
 
 > The exe is not signed, so Windows may show "Windows protected your PC" the first time: click **More info → Run anyway**.
 
-Everyone starts from a clean setup: the download contains only the exe and this README. Each user's saved tabs, scan results and learned digits are kept on their own PC in `%APPDATA%\PoeStashPricer\`. Screenshots of your stash are only used while saving a tab and are never stored. To start over, click **Delete all** in the app; to remove the app, delete the exe and that folder.
+Everyone starts from a clean setup: the download contains only the exe, this README and the license. Each user's saved tabs, scan results and learned digits are kept on their own PC in `%APPDATA%\PoeStashPricer\`. Screenshots of your stash are only used during a scan and are never stored. To start over, click **Delete all** in the app; to remove the app, delete the exe and that folder.
 
 ## Game settings
 
@@ -40,7 +54,7 @@ The last scan of every tab is kept:
 ### The app window
 
 - **Top:** the total value of all scanned tabs.
-- **Left:** your tabs with their value and last scan time. The tab open in the game is bold and marked with ▶.
+- **Left:** your tabs with their value and last scan time. The tab open in the game is highlighted in gold and marked with ▶.
 - **Right:** the items of the tab open in the game (or the one picked on the left) with quantities and prices.
 - **League / Show in:** the league to price for, and whether prices are shown in Divine, Exalted, Chaos or automatically. (poe.ninja prices PoE2 per league only, so there is no realm to pick.)
 - **Hover delay (ms):** wait between moving onto an item and pressing Ctrl+C. Increase it (60–100) if items are read wrong or missed.
@@ -77,6 +91,15 @@ F7 and F8 are the defaults. To use other keys, click **Scan key** or **Overlay k
 - **A tab got the wrong name or was learned wrongly.** Pick it in the list and click **Rename**, or **Delete** it and scan it again.
 - **Still stuck?** The app writes what it sees to `%APPDATA%\PoeStashPricer\log.txt` (paste that path into the Explorer address bar). Send that file along with your question.
 
+## Privacy and security
+
+- **Nothing about you leaves your PC.** The only network traffic is downloading league and price lists from poe.ninja over HTTPS. No account, no telemetry, no updates checked in the background.
+- **Screenshots stay in memory.** The app looks at the game window to find the stash and the items, and forgets the pictures after the scan. They are never saved or sent.
+- **Your clipboard is put back.** Scanning copies items with Ctrl+C; afterwards the text you had on the clipboard is restored, kept out of the Windows clipboard history and cloud clipboard (it could be a password from a password manager).
+- **Input only goes to the game.** The mouse moves and Ctrl+C presses stop the moment another window comes to the front.
+- **Everything the app keeps** is in `%APPDATA%\PoeStashPricer\`: settings, learned tabs (slot positions and a tiny greyscale thumbnail used to recognise the tab), last scans and a diagnostic log. The log never holds window titles or clipboard contents.
+- **Verifiable downloads.** Each release lists the SHA-256 of its files, and releases from 1.3.2 on are built by GitHub Actions with a signed provenance attestation. See [SECURITY.md](SECURITY.md) for how to verify a download and how to report a vulnerability privately.
+
 ## For developers
 
 The source is in `src\`. It builds with the C# compiler that ships with Windows, nothing to install:
@@ -86,6 +109,10 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
 `tools\detect-test.ps1` runs panel detection, slot learning and tab recognition on full-screen stash screenshots in `samples\` without the game, and writes annotated images to `samples\out\`.
+
+Every push and pull request is built on a clean Windows machine by [GitHub Actions](.github/workflows/build.yml); the zip is attached to the run as an artifact. Pushing a version tag (`git tag v1.2.3 && git push origin v1.2.3`) builds the release zip, attests it and attaches it with `SHA256SUMS.txt` to the GitHub release of that tag, creating the release if needed.
+
+`tools\make-icon.ps1` redraws `src\app.ico`.
 
 ## License
 

@@ -1,0 +1,72 @@
+# Builds the exe on a clean Windows machine for every push and pull request.
+# For a version tag (v1.2.3) it also puts the zip and its SHA-256 on the GitHub release, with a signed build
+# provenance attestation, so anyone can check that the download was built from this repository's source.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write        # attach the zip to the release (tags only)
+      id-token: write        # sign the build provenance
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\build.ps1
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { 'dev-' + $env:GITHUB_SHA.Substring(0, 7) }
+          $zip = "PoeStashPricer-$version.zip"
+          New-Item -ItemType Directory package | Out-Null
+          Copy-Item dist\PoeStashPricer.exe package\
+          Copy-Item README.md package\README.txt
+          Copy-Item LICENSE package\LICENSE.txt
+          Compress-Archive -Path package\* -DestinationPath $zip
+          Get-FileHash dist\PoeStashPricer.exe, $zip -Algorithm SHA256 |
+            ForEach-Object { '{0}  {1}' -f $_.Hash.ToLower(), (Split-Path $_.Path -Leaf) } |
+            Set-Content SHA256SUMS.txt -Encoding utf8
+          Get-Content SHA256SUMS.txt
+          "ZIP=$zip" >> $env:GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PoeStashPricer
+          path: |
+            ${{ env.ZIP }}
+            SHA256SUMS.txt
+
+      - name: Attest build provenance
+        if: github.event_name == 'push'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/PoeStashPricer.exe
+            ${{ env.ZIP }}
+
+      - name: Publish to the release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            $notes = "Built by GitHub Actions from $env:GITHUB_SHA.`n`n``````n" + (Get-Content SHA256SUMS.txt -Raw) + "``````"
+            gh release create $tag --title $tag --notes $notes
+          }
+          gh release upload $tag $env:ZIP SHA256SUMS.txt --clobber
