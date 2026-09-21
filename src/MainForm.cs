@@ -900,19 +900,42 @@ namespace PoeStashPricer
         /// The first scan of a tab teaches it: if the scanned tab isn't one of the saved ones and looks like a
         /// special (fixed-slot) tab, it is saved under a name guessed from its items. Returns that name, or null.
         /// </summary>
+        /// <summary>Share of item types in common between a scan and a saved result (of the smaller of the two).</summary>
+        static double SharedItems(ScanResult res, TabResult saved)
+        {
+            if (saved == null) return 0;
+            HashSet<string> now = new HashSet<string>(res.Items.Where(i => i.Item != null && i.Item.Name != null).Select(i => i.Item.Name));
+            HashSet<string> before = new HashSet<string>();
+            foreach (SavedItem s in saved.Items)
+            {
+                ParsedItem it = ItemParser.Parse(s.Text);
+                if (it != null && it.Name != null) before.Add(it.Name);
+            }
+            int smaller = Math.Min(now.Count, before.Count);
+            if (smaller == 0) return 0;
+            return (double)now.Count(n => before.Contains(n)) / smaller;
+        }
+
         string LearnIfNew(ScanResult res, ScanConfig cfg)
         {
-            if (res.Aborted || res.Snapshot == null) return null;
+            if (res.Tab != null || res.Aborted || res.Snapshot == null) return null;
             string why;
-            if (res.Tab != null)
+            if (res.Candidate != null)
             {
-                // A loose picture match is checked against what the tab holds: an unsaved sub-tab (Soul Cores)
-                // can look like a saved one (Runes) but holds other items.
-                if (res.TabDifference <= TabLibrary.SureMatch) return null;
-                string kind = TabLibrary.GuessSpecialTab(res, cfg.Region, out why);
-                if (kind == null || kind == TabLibrary.KindOf(res.Tab)) return null;
-                Log.Write(string.Format("looked like '{0}' (difference {1:0.00}) but holds {2} items: a different tab", res.Tab.Name, res.TabDifference, kind));
-                res.Tab = null;
+                // The picture is similar to a saved tab but not the same. The items decide: the same tab still
+                // holds mostly the same items; a look-alike sub-tab (Kalguuran Runes next to Runes) holds others.
+                double shared = SharedItems(res, ResultFor(res.Candidate.Key));
+                if (shared >= 0.5)
+                {
+                    Scanner.MergeNearDuplicates(res, double.MaxValue);   // a special tab: one slot per item type
+                    res.Tab = res.Candidate;
+                    TabLibrary.Refresh(res.Tab, res.Snapshot, res.FrameColor);
+                    TabLibrary.AddSlots(res.Tab, res.Items.Select(i => new Rectangle(i.Bounds.X - cfg.Region.X, i.Bounds.Y - cfg.Region.Y, i.Bounds.Width, i.Bounds.Height)), cfg.Region.Size);
+                    TabLibrary.Save(res.Tab);
+                    Log.Write(string.Format("tab '{0}' recognised by its items ({1:0%} the same), its picture was updated", res.Tab.Name, shared));
+                    return null;
+                }
+                Log.Write(string.Format("looked like '{0}' but holds other items ({1:0%} the same): a different tab", res.Candidate.Name, shared));
             }
             string guess = TabLibrary.GuessSpecialTab(res, cfg.Region, out why);
             if (guess == null)
