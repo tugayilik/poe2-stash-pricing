@@ -46,6 +46,7 @@ namespace PoeStashPricer
         public bool BlackScreen;       // the game picture can't be captured (exclusive fullscreen)
         public TabProfile Tab;         // recognised saved tab, or null
         public double TabDifference = 1;   // how far the picture was from that tab (0 = identical)
+        public TabProfile Candidate;   // not recognised for sure, but looks like this saved tab (decided by the items)
         public double[] FrameColor;    // colour of the tab's frame (for learning a new tab), or null
         public PixelBuffer Snapshot;   // the stash as captured before hovering (baseline for tab-change detection)
     }
@@ -57,6 +58,7 @@ namespace PoeStashPricer
         public bool BlackScreen;              // the game picture can't be captured (exclusive fullscreen)
         public TabProfile Tab;                // recognised saved tab, or null
         public double Difference = 1;         // picture difference to the closest saved tab
+        public TabProfile Candidate;          // a similar saved tab, when none matched for sure
         public double[] FrameColor;           // colour of the tab's frame, or null
         public PixelBuffer Snapshot;          // the stash region only
         public List<ProbeGroup> Groups = new List<ProbeGroup>();
@@ -450,7 +452,9 @@ namespace PoeStashPricer
             plan.FrameColor = loc.FrameColor;
             plan.Tab = profiles == null ? null : TabLibrary.Identify(plan.Snapshot, loc.FrameColor, profiles, out difference);
             plan.Difference = difference;
-            if (profiles != null) Log.Write("tab recognised: " + (plan.Tab != null ? plan.Tab.Key : "none") + " (difference " + difference.ToString("0.00") + ")");
+            if (plan.Tab == null && profiles != null) plan.Candidate = TabLibrary.Candidate(plan.Snapshot, loc.FrameColor, profiles, out difference);
+            if (profiles != null) Log.Write("tab recognised: " + (plan.Tab != null ? plan.Tab.Key : "none") + " (difference " + difference.ToString("0.00") + ")"
+                                           + (plan.Candidate != null ? ", looks like " + plan.Candidate.Key + ": checked by its items after the scan" : ""));
             Size area = new Size(plan.Snapshot.Width, plan.Snapshot.Height);
             cfg.CellSize = Grid.CellSizeFor(area.Width);
             cfg.FixedLayout = plan.Tab != null;
@@ -605,6 +609,7 @@ namespace PoeStashPricer
             long planMs = clock.ElapsedMilliseconds, firstMs = 0;
             res.Tab = plan.Tab;
             res.TabDifference = plan.Difference;
+            res.Candidate = plan.Candidate;
             res.FrameColor = plan.FrameColor;
             if (!plan.StashVisible)
             {

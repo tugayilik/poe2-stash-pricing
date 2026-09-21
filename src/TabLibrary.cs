@@ -65,9 +65,7 @@ namespace PoeStashPricer
         // the same tab, captured after the fade-in, 0.00 to 0.03 (0.65 when half faded, before CaptureStable).
         // The sub-tabs of Runes share frame colour and artwork, so a loose match took Soul Cores for Runes.
         public const double SureMatch = 0.07;   // this close: the same tab
-        const double MaxDifferent = 0.3;    // up to this: the same tab if clearly closer than another candidate
-        const double MinMargin = 0.1;       // "clearly closer"
-        const double ExactMatch = 0.05;     // near-identical picture (saving the same tab twice)
+        const double MaxDifferent = 0.3;    // up to this: similar enough to check the items after the scan
         const double MaxFrameHue = 0.15;    // frame colours further apart than this belong to different tabs
 
         static string Dir { get { return Path.Combine(AppSettings.Dir, "tabs"); } }
@@ -247,16 +245,6 @@ namespace PoeStashPricer
             return false;
         }
 
-        /// <summary>What a saved tab holds: the guess made when it was learned, or its name for older profiles.</summary>
-        public static string KindOf(TabProfile p)
-        {
-            if (!string.IsNullOrEmpty(p.Kind)) return p.Kind;
-            string n = p.Name ?? "";
-            int sp = n.LastIndexOf(' ');
-            if (sp > 0 && n.Substring(sp + 1).All(char.IsDigit)) n = n.Substring(0, sp);   // "Runes 2" -> "Runes"
-            return n;
-        }
-
         /// <summary>A free key and display name for a new tab called <paramref name="name"/> ("Runes", "Runes 2"...).</summary>
         public static void NewKey(string name, ICollection<string> existingKeys, out string key, out string displayName)
         {
@@ -331,28 +319,36 @@ namespace PoeStashPricer
         /// </summary>
         public static TabProfile Identify(PixelBuffer pb, double[] frameColor, IEnumerable<TabProfile> profiles, out double difference)
         {
-            double second;
-            TabProfile best = Closest(pb, frameColor, profiles, out difference, out second);
-            // A clear match, or clearly the closest of several look-alikes. With a single candidate a loose
-            // match is not trusted: an unsaved sub-tab (Soul Cores next to a saved Runes) looks alike too.
-            if (difference <= SureMatch || (difference <= MaxDifferent && second < 1 && second - difference >= MinMargin)) return best;
-            return null;
+            TabProfile best = Closest(pb, frameColor, profiles, out difference);
+            // Only a clear match. A merely similar picture is not enough: the Runes sub-tabs look alike
+            // (0.10 to 0.27 apart), and Kalguuran Runes even hold the same kind of items as Runes.
+            return difference <= SureMatch ? best : null;
         }
 
-        /// <summary>Only a near-identical picture: used to warn about saving the same tab twice.</summary>
-        public static TabProfile IdentifyExact(PixelBuffer pb, double[] frameColor, IEnumerable<TabProfile> profiles)
+        /// <summary>
+        /// The saved tab that looks similar but not the same (after many items changed, say). Whether it is
+        /// that tab is decided after the scan, by the items read (see <c>SameItems</c> in MainForm).
+        /// </summary>
+        public static TabProfile Candidate(PixelBuffer pb, double[] frameColor, IEnumerable<TabProfile> profiles, out double difference)
         {
-            double d, second;
-            TabProfile best = Closest(pb, frameColor, profiles, out d, out second);
-            return d <= ExactMatch ? best : null;
+            TabProfile best = Closest(pb, frameColor, profiles, out difference);
+            return difference > SureMatch && difference <= MaxDifferent ? best : null;
         }
 
-        static TabProfile Closest(PixelBuffer pb, double[] frameColor, IEnumerable<TabProfile> profiles, out double difference, out double second)
+        /// <summary>Takes a new picture of a tab whose look changed, so it is recognised for sure again.</summary>
+        public static void Refresh(TabProfile p, PixelBuffer pb, double[] frameColor)
+        {
+            p.Signature = Signature(pb);
+            p.ItemMask = ItemMask(pb);
+            if (frameColor != null) p.FrameColor = frameColor;
+            p.Saved = DateTime.Now;
+        }
+
+        static TabProfile Closest(PixelBuffer pb, double[] frameColor, IEnumerable<TabProfile> profiles, out double difference)
         {
             List<double> sig = Signature(pb), mask = ItemMask(pb);
             TabProfile best = null;
             difference = 1;
-            second = 1;
             foreach (TabProfile p in profiles)
             {
                 if (p.Signature == null || p.Signature.Count != sig.Count) continue;
@@ -366,8 +362,7 @@ namespace PoeStashPricer
                 // Correlation of the item-free cells: follows the panel's pattern of light and dark, and is
                 // unaffected by the game fading a tab in (darker or washed-out picture). 0 = identical.
                 double d = 1 - Correlation(sig, p.Signature, cells);
-                if (d < difference) { second = difference; difference = d; best = p; }
-                else if (d < second) second = d;
+                if (d < difference) { difference = d; best = p; }
             }
             return best;
         }
