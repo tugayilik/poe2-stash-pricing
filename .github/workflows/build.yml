@@ -22,6 +22,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check the version
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        run: |
+          # A release tag must point at a commit whose app version is the same, or the zip would carry an old one.
+          $m = Select-String -Path src\MainForm.cs -Pattern 'public const string Version = "([^"]+)"'
+          $version = $m.Matches[0].Groups[1].Value
+          if ("v$version" -ne $env:GITHUB_REF_NAME) {
+            Write-Error "Tag $env:GITHUB_REF_NAME does not match the app version $version in src/MainForm.cs"
+            exit 1
+          }
+
       - name: Build
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File .\build.ps1
