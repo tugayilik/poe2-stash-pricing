@@ -78,7 +78,8 @@ jobs:
           $tag = $env:GITHUB_REF_NAME
           gh release view $tag *> $null
           if ($LASTEXITCODE -ne 0) {
-            $notes = "Built by GitHub Actions from $env:GITHUB_SHA.`n`n``````n" + (Get-Content SHA256SUMS.txt -Raw) + "``````"
+            $fence = '```'
+            $notes = "Built by GitHub Actions from $env:GITHUB_SHA.`n`n$fence`n" + (Get-Content SHA256SUMS.txt -Raw) + $fence
             gh release create $tag --title $tag --notes $notes
           }
           gh release upload $tag $env:ZIP SHA256SUMS.txt --clobber
