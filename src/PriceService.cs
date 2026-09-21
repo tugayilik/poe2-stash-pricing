@@ -25,6 +25,8 @@ namespace PoeStashPricer
         public double ExPerDiv;
         public double ChaosPerDiv;
         public List<string> Failed = new List<string>();
+        public bool RateLimited;            // poe.ninja answered 429/503: the rest was not asked
+        public TimeSpan RetryAfter;         // from the Retry-After header, zero if none
 
         internal readonly Dictionary<string, PriceInfo> ByName = new Dictionary<string, PriceInfo>();
         internal readonly Dictionary<string, PriceInfo> UniqueByNameBase = new Dictionary<string, PriceInfo>();
@@ -56,6 +58,24 @@ namespace PoeStashPricer
             return null;
         }
 
+        /// <summary>
+        /// For the categories that failed to load, keep the prices of the previous table, so a partial update
+        /// doesn't make the stash value drop.
+        /// </summary>
+        public void FillFailedFrom(PriceTable old)
+        {
+            if (old == null || old.League != League || Failed.Count == 0) return;
+            HashSet<string> failed = new HashSet<string>(Failed);
+            foreach (KeyValuePair<string, PriceInfo> kv in old.ByName)
+                if (failed.Contains(kv.Value.Category) && !ByName.ContainsKey(kv.Key)) ByName[kv.Key] = kv.Value;
+            foreach (KeyValuePair<string, PriceInfo> kv in old.UniqueByNameBase)
+                if (failed.Contains(kv.Value.Category) && !UniqueByNameBase.ContainsKey(kv.Key)) UniqueByNameBase[kv.Key] = kv.Value;
+            foreach (KeyValuePair<string, PriceInfo> kv in old.UniqueByName)
+                if (failed.Contains(kv.Value.Category) && !UniqueByName.ContainsKey(kv.Key)) UniqueByName[kv.Key] = kv.Value;
+            if (ExPerDiv <= 0) ExPerDiv = old.ExPerDiv;
+            if (ChaosPerDiv <= 0) ChaosPerDiv = old.ChaosPerDiv;
+        }
+
         internal void AddExchange(string name, string category, double div)
         {
             string k = Key(name);
@@ -81,7 +101,7 @@ namespace PoeStashPricer
     public static class PriceService
     {
         const string Base = "https://poe.ninja/poe2/api/economy/";
-        const string UserAgent = "PoeStashPricer/1.2.3 (desktop stash pricing tool)";
+        const string UserAgent = "PoeStashPricer/1.3.0 (desktop stash pricing tool)";
 
         static readonly string[] ExchangeTypes =
         {
@@ -162,6 +182,7 @@ namespace PoeStashPricer
             foreach (string type in ExchangeTypes)
             {
                 step++;
+                if (t.RateLimited) { t.Failed.Add(type); continue; }   // don't keep asking a server that said "slow down"
                 if (progress != null) progress("Loading prices (" + step + "/" + total + "): " + type);
                 try
                 {
@@ -182,12 +203,13 @@ namespace PoeStashPricer
                         t.AddExchange(name, type, Num(pv));
                     }
                 }
-                catch (Exception) { t.Failed.Add(type); }
+                catch (Exception ex) { t.Failed.Add(type); Limited(ex, t); }
             }
 
             foreach (string type in StashTypes)
             {
                 step++;
+                if (t.RateLimited) { t.Failed.Add(type); continue; }   // don't keep asking a server that said "slow down"
                 if (progress != null) progress("Loading prices (" + step + "/" + total + "): " + type);
                 try
                 {
@@ -203,11 +225,30 @@ namespace PoeStashPricer
                         t.AddUnique(name, baseType ?? "", type, Num(pv), (int)Num(lc));
                     }
                 }
-                catch (Exception) { t.Failed.Add(type); }
+                catch (Exception ex) { t.Failed.Add(type); Limited(ex, t); }
             }
 
             t.LoadedAt = DateTime.Now;
             return t;
+        }
+
+        /// <summary>True (and remembered in the table) when the server asked us to slow down.</summary>
+        static bool Limited(Exception ex, PriceTable t)
+        {
+            WebException we = ex as WebException;
+            HttpWebResponse resp = we != null ? we.Response as HttpWebResponse : null;
+            if (resp == null) return false;
+            int code = (int)resp.StatusCode;
+            if (code != 429 && code != 503) return false;
+            t.RateLimited = true;
+            string ra = resp.Headers["Retry-After"];
+            int seconds;
+            DateTime when;
+            if (int.TryParse(ra, out seconds)) t.RetryAfter = TimeSpan.FromSeconds(seconds);
+            else if (DateTime.TryParse(ra, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out when))
+                t.RetryAfter = when - DateTime.UtcNow;
+            Log.Write("poe.ninja rate limit (" + code + "), retry after: " + (ra ?? "-"));
+            return true;
         }
 
         static void ReadRates(PriceTable t, Dictionary<string, object> root)

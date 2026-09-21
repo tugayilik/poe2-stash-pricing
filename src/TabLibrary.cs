@@ -3,24 +3,20 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Web.Script.Serialization;
 
 namespace PoeStashPricer
 {
-    public class TabDef
-    {
-        public string Key;
-        public string Name;
-        public TabDef(string key, string name) { Key = key; Name = name; }
-    }
-
     /// <summary>
-    /// What we learned from the user's screenshot of one tab: where its slots are and how it looks.
+    /// What was learned about one stash tab on its first scan: its name, where its slots are and how it looks.
     /// Everything is stored relative to the stash area, so it keeps working after a resolution change.
     /// </summary>
     public class TabProfile
     {
         public string Key { get; set; }
+        public string Name { get; set; }              // shown in the app, e.g. "Essence" (guessed from the items)
+        public string Kind { get; set; }              // the guess from the items when learned (Name can be renamed); null before 1.3
         public DateTime Saved { get; set; }
         public double CellFrac { get; set; }          // cell size / stash width
         public List<double[]> Slots { get; set; }     // x, y, w, h as fractions of the stash area
@@ -42,29 +38,34 @@ namespace PoeStashPricer
 
     public static class TabLibrary
     {
-        public static readonly TabDef[] Tabs =
+        // Names of tabs saved by versions before 1.3 (which had a fixed list and stored no name).
+        static readonly Dictionary<string, string> LegacyNames = new Dictionary<string, string>
         {
-            new TabDef("currency", "Currency"),
-            new TabDef("fragments", "Fragments"),
-            new TabDef("expedition", "Expedition"),
-            new TabDef("breach", "Breach"),
-            new TabDef("abyss", "Abyss"),
-            new TabDef("essence", "Essence"),
-            new TabDef("delirium", "Delirium"),
-            new TabDef("runes", "Runes › Runes"),
-            new TabDef("kalguuran", "Runes › Kalguuran Runes"),
-            new TabDef("soulcores", "Runes › Soul Cores"),
-            new TabDef("idols", "Runes › Idols"),
-            new TabDef("augments", "Runes › Ancient Augments"),
-            new TabDef("ritual", "Ritual"),
+            { "currency", "Currency" }, { "fragments", "Fragments" }, { "expedition", "Expedition" },
+            { "breach", "Breach" }, { "abyss", "Abyss" }, { "essence", "Essence" }, { "delirium", "Delirium" },
+            { "runes", "Runes" }, { "kalguuran", "Kalguuran Runes" }, { "soulcores", "Soul Cores" },
+            { "idols", "Idols" }, { "augments", "Ancient Augments" }, { "ritual", "Ritual" },
         };
+
+        // poe.ninja category of the items -> name of the special tab that holds them.
+        static readonly Dictionary<string, string> CategoryTabs = new Dictionary<string, string>
+        {
+            { "Currency", "Currency" }, { "Fragments", "Fragments" }, { "Essences", "Essence" },
+            { "Delirium", "Delirium" }, { "Ritual", "Ritual" }, { "Expedition", "Expedition" },
+            { "Breach", "Breach" }, { "Abyss", "Abyss" }, { "Runes", "Runes" }, { "SoulCores", "Soul Cores" },
+            { "Idols", "Idols" }, { "UncutGems", "Gems" }, { "LineageSupportGems", "Gems" },
+            { "Verisium", "Expedition" },   // Verisium and alloys sit in the Expedition tab
+        };
+
+        static readonly Dictionary<string, string> names = new Dictionary<string, string>();
 
         const int SigSize = 48;
         // Differences are 1 - correlation of the item-free parts of the picture (0 = identical).
-        // Measured on 12 saved tabs: different tabs 0.11 (Runes vs Kalguuran Runes, same artwork) to 0.96;
-        // the same tab with half its items changed and faded 0.00 to 0.65, always clearly the closest.
-        const double SureMatch = 0.15;      // this close: the same tab
-        const double MaxDifferent = 0.5;    // up to this: the same tab if clearly closer than any other
+        // Measured on 12 saved tabs: different tabs 0.10 (Runes vs Kalguuran Runes, same artwork) to 0.96;
+        // the same tab, captured after the fade-in, 0.00 to 0.03 (0.65 when half faded, before CaptureStable).
+        // The sub-tabs of Runes share frame colour and artwork, so a loose match took Soul Cores for Runes.
+        public const double SureMatch = 0.07;   // this close: the same tab
+        const double MaxDifferent = 0.3;    // up to this: the same tab if clearly closer than another candidate
         const double MinMargin = 0.1;       // "clearly closer"
         const double ExactMatch = 0.05;     // near-identical picture (saving the same tab twice)
         const double MaxFrameHue = 0.15;    // frame colours further apart than this belong to different tabs
@@ -73,23 +74,27 @@ namespace PoeStashPricer
 
         public static string NameOf(string key)
         {
-            foreach (TabDef t in Tabs) if (t.Key == key) return t.Name;
+            string n;
+            if (key != null && names.TryGetValue(key, out n)) return n;
+            if (key != null && LegacyNames.TryGetValue(key, out n)) return n;
             return key;
         }
 
         public static Dictionary<string, TabProfile> LoadAll()
         {
             Dictionary<string, TabProfile> res = new Dictionary<string, TabProfile>();
+            if (!Directory.Exists(Dir)) return res;
             JavaScriptSerializer js = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
-            foreach (TabDef t in Tabs)
+            foreach (string f in Directory.GetFiles(Dir, "*.json"))
             {
-                string f = Path.Combine(Dir, t.Key + ".json");
+                string key = Path.GetFileNameWithoutExtension(f);
                 try
                 {
-                    if (!File.Exists(f)) continue;
                     TabProfile p = js.Deserialize<TabProfile>(File.ReadAllText(f));
+                    p.Key = key;
+                    if (string.IsNullOrEmpty(p.Name)) p.Name = NameOf(key);
                     // Profiles saved by an older version have no item mask: rebuild it from the saved picture.
-                    string png = Path.Combine(Dir, t.Key + ".png");
+                    string png = Path.Combine(Dir, key + ".png");
                     if ((p.ItemMask == null || p.ItemMask.Count == 0) && File.Exists(png))
                     {
                         using (Bitmap bmp = new Bitmap(png))
@@ -102,7 +107,8 @@ namespace PoeStashPricer
                     }
                     // Versions before 1.2 kept a screenshot of every tab; everything needed is in the JSON now.
                     if (File.Exists(png) && p.ItemMask != null && p.ItemMask.Count > 0) File.Delete(png);
-                    res[t.Key] = p;
+                    names[key] = p.Name;
+                    res[key] = p;
                 }
                 catch { }
             }
@@ -118,8 +124,34 @@ namespace PoeStashPricer
             Directory.CreateDirectory(Dir);
             JavaScriptSerializer js = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
             File.WriteAllText(Path.Combine(Dir, p.Key + ".json"), js.Serialize(p));
+            names[p.Key] = p.Name;
             string png = Path.Combine(Dir, p.Key + ".png");   // left by versions before 1.2
             if (File.Exists(png)) File.Delete(png);
+        }
+
+        /// <summary>
+        /// Adds the places where items were found that the tab doesn't know yet (slots that were empty when it
+        /// was learned), so later scans hover them even when they look empty. Returns how many were added.
+        /// </summary>
+        public static int AddSlots(TabProfile p, IEnumerable<Rectangle> found, Size area)
+        {
+            if (area.Width <= 0 || area.Height <= 0) return 0;
+            List<Rectangle> known = p.SlotsIn(area);
+            int added = 0;
+            foreach (Rectangle f in found)
+            {
+                bool isKnown = false;
+                foreach (Rectangle k in known)
+                {
+                    Rectangle x = Rectangle.Intersect(k, f);
+                    if ((double)x.Width * x.Height > 0.25 * Math.Min(k.Width * k.Height, f.Width * f.Height)) { isKnown = true; break; }
+                }
+                if (isKnown) continue;
+                known.Add(f);
+                p.Slots.Add(new[] { (double)f.X / area.Width, (double)f.Y / area.Height, (double)f.Width / area.Width, (double)f.Height / area.Height });
+                added++;
+            }
+            return added;
         }
 
         public static void Delete(string key)
@@ -129,18 +161,126 @@ namespace PoeStashPricer
                 string f = Path.Combine(Dir, key + ext);
                 if (File.Exists(f)) File.Delete(f);
             }
+            names.Remove(key);
         }
 
         /// <summary>Removes every saved tab (and screenshots older versions kept).</summary>
         public static void DeleteAll()
         {
+            names.Clear();
             if (!Directory.Exists(Dir)) return;
             foreach (string f in Directory.GetFiles(Dir, "*.json")) File.Delete(f);
             foreach (string f in Directory.GetFiles(Dir, "*.png")) File.Delete(f);
         }
 
-        /// <summary>Learns a tab's slots from a clean screenshot of its stash area.</summary>
-        public static TabProfile Learn(string key, PixelBuffer pb, double[] frameColor, ScanConfig template)
+        /// <summary>
+        /// Decides from the first scan of an unknown tab whether it is a special (fixed-slot) tab worth learning,
+        /// and what to call it. Returns the tab name, or null with the reason in <paramref name="why"/>.
+        /// Normal and quad tabs are not learned: they can hold two stacks of the same item, which the
+        /// "one slot per item type" logic of saved tabs would count once.
+        /// </summary>
+        public static string GuessSpecialTab(ScanResult res, Rectangle region, out string why)
+        {
+            List<ScanItem> items = res.Items;
+            List<ScanItem> priced = items.Where(i => i.Price != null).ToList();
+            double cellSize = region.Width / 12.0;
+            if (priced.Count == 0) { why = "no priced items to tell which tab this is"; return null; }
+            if (priced.Count < 3)
+            {
+                // A nearly empty tab (a couple of Breach splinters) can still be told apart: its items are of a
+                // kind that only that special tab holds, and they sit off the grid a normal tab would put them on.
+                if (priced.Count < items.Count || priced.Any(i => !CategoryTabs.ContainsKey(i.Price.Category) || !OwnTab.Contains(i.Price.Category)))
+                { why = "too few priced items to tell which tab this is"; return null; }
+                if (items.Any(i => OnGrid(i.Bounds, region)))
+                { why = "too few items, and they sit on a normal tab's grid"; return null; }
+            }
+            if (items.Count - priced.Count > items.Count * 0.3) { why = "many unpriced items (gear): a normal tab"; return null; }
+
+            // The same item at two places apart: a normal tab (special tabs have one slot per item type).
+            // Neighbouring reads of one item don't count: they can be the cells of one big (2x2) slot.
+            for (int a = 0; a < items.Count; a++)
+                for (int b = a + 1; b < items.Count; b++)
+                {
+                    if (items[a].Text != items[b].Text) continue;
+                    double dx = (items[a].Bounds.X + items[a].Bounds.Width / 2.0) - (items[b].Bounds.X + items[b].Bounds.Width / 2.0);
+                    double dy = (items[a].Bounds.Y + items[a].Bounds.Height / 2.0) - (items[b].Bounds.Y + items[b].Bounds.Height / 2.0);
+                    if (Math.Sqrt(dx * dx + dy * dy) >= cellSize * 2.5) { why = "the same item is in two places: a normal tab"; return null; }
+                }
+
+            // Items on a regular 12x12 or 24x24 grid: a normal or quad tab.
+            foreach (double cell in new[] { region.Width / 12.0, region.Width / 24.0 })
+            {
+                int aligned = 0;
+                foreach (ScanItem si in items)
+                {
+                    double fx = ((si.Bounds.X - region.X) / cell) % 1, fy = ((si.Bounds.Y - region.Y) / cell) % 1;
+                    if ((fx < 0.12 || fx > 0.88) && (fy < 0.12 || fy > 0.88)) aligned++;
+                }
+                if (items.Count >= 5 && aligned >= items.Count * 0.8) { why = "items sit on a regular grid: a normal or quad tab"; return null; }
+            }
+
+            // Named after the kind of item most of it holds. Omens (poe.ninja: Ritual) also have their own
+            // place in the Abyss tab, so they count half: Abyss bones next to Abyss omens make it Abyss.
+            var best = priced.Where(i => CategoryTabs.ContainsKey(i.Price.Category))
+                             .GroupBy(i => CategoryTabs[i.Price.Category])
+                             .OrderByDescending(g => g.Sum(i => i.Price.Category == "Ritual" ? 0.5 : 1.0)).FirstOrDefault();
+            if (best == null) { why = "its items don't belong to a special tab"; return null; }
+            why = null;
+            return best.Key;
+        }
+
+        // Categories whose items have a place only in their own special tab (Currency, Omens and gems also
+        // turn up in other tabs).
+        static readonly HashSet<string> OwnTab = new HashSet<string>
+        {
+            "Fragments", "Essences", "Delirium", "Expedition", "Verisium", "Breach", "Abyss", "Runes", "SoulCores", "Idols"
+        };
+
+        /// <summary>True when the item sits exactly on the cells of a normal (12 wide) or quad (24 wide) tab.</summary>
+        static bool OnGrid(Rectangle bounds, Rectangle region)
+        {
+            foreach (double cell in new[] { region.Width / 12.0, region.Width / 24.0 })
+            {
+                double fx = ((bounds.X - region.X) / cell) % 1, fy = ((bounds.Y - region.Y) / cell) % 1;
+                if ((fx < 0.12 || fx > 0.88) && (fy < 0.12 || fy > 0.88)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>What a saved tab holds: the guess made when it was learned, or its name for older profiles.</summary>
+        public static string KindOf(TabProfile p)
+        {
+            if (!string.IsNullOrEmpty(p.Kind)) return p.Kind;
+            string n = p.Name ?? "";
+            int sp = n.LastIndexOf(' ');
+            if (sp > 0 && n.Substring(sp + 1).All(char.IsDigit)) n = n.Substring(0, sp);   // "Runes 2" -> "Runes"
+            return n;
+        }
+
+        /// <summary>A free key and display name for a new tab called <paramref name="name"/> ("Runes", "Runes 2"...).</summary>
+        public static void NewKey(string name, ICollection<string> existingKeys, out string key, out string displayName)
+        {
+            string slug = new string(name.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+            key = slug;
+            displayName = name;
+            for (int n = 2; existingKeys.Contains(key); n++)
+            {
+                key = slug + n;
+                displayName = name + " " + n;
+            }
+        }
+
+        public static void Rename(TabProfile p, string name)
+        {
+            p.Name = name;
+            Save(p);
+        }
+
+        /// <summary>
+        /// Learns a tab from its first scan: <paramref name="pb"/> is the clean screenshot of the stash area and
+        /// <paramref name="itemSlots"/> (area coordinates) where items were actually read, which are certain slots.
+        /// </summary>
+        public static TabProfile Learn(string key, string name, PixelBuffer pb, double[] frameColor, ScanConfig template, IEnumerable<Rectangle> itemSlots)
         {
             ScanConfig cfg = new ScanConfig
             {
@@ -154,6 +294,9 @@ namespace PoeStashPricer
             // Filled slots are what the scan would hover; empty ones sit on the same rows/columns
             // (the slot lattice) and look like dark squares instead of panel stone.
             List<Rectangle> slots = new List<Rectangle>();
+            if (itemSlots != null)
+                foreach (Rectangle rc in itemSlots)
+                    if (!Overlaps(slots, rc)) slots.Add(rc);
             foreach (ProbeGroup g in Grid.Plan(pb, cfg, null))
                 for (int r = 0; r < g.Rows; r++)
                     for (int c = 0; c < g.Cols; c++)
@@ -163,7 +306,7 @@ namespace PoeStashPricer
                         if (slot && !Overlaps(slots, rc)) slots.Add(rc);
                     }
 
-            TabProfile p = new TabProfile { Key = key, Saved = DateTime.Now, CellFrac = cfg.CellSize / pb.Width };
+            TabProfile p = new TabProfile { Key = key, Name = name, Saved = DateTime.Now, CellFrac = cfg.CellSize / pb.Width };
             foreach (Rectangle rc in slots)
                 p.Slots.Add(new[] { (double)rc.X / pb.Width, (double)rc.Y / pb.Height, (double)rc.Width / pb.Width, (double)rc.Height / pb.Height });
             p.Signature = Signature(pb);
@@ -190,8 +333,9 @@ namespace PoeStashPricer
         {
             double second;
             TabProfile best = Closest(pb, frameColor, profiles, out difference, out second);
-            // A clear match, or the best by a margin (many items changed since the tab was saved).
-            if (difference <= SureMatch || (difference <= MaxDifferent && second - difference >= MinMargin)) return best;
+            // A clear match, or clearly the closest of several look-alikes. With a single candidate a loose
+            // match is not trusted: an unsaved sub-tab (Soul Cores next to a saved Runes) looks alike too.
+            if (difference <= SureMatch || (difference <= MaxDifferent && second < 1 && second - difference >= MinMargin)) return best;
             return null;
         }
 

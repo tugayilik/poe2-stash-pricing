@@ -20,7 +20,7 @@ namespace PoeStashPricer
         static readonly Color Key = Color.FromArgb(255, 0, 255);
         readonly Rectangle virt;
         List<OverlayLabel> labels = new List<OverlayLabel>();
-        string header;
+        string header, notice;   // notice: an optional second line, e.g. "prices changed since the scan"
         Rectangle headerAnchor;
 
         public OverlayForm()
@@ -58,10 +58,11 @@ namespace PoeStashPricer
             }
         }
 
-        public void ShowLabels(List<OverlayLabel> items, string headerText, Rectangle region)
+        public void ShowLabels(List<OverlayLabel> items, string headerText, Rectangle region, string noticeText = null)
         {
             labels = items;
             header = headerText;
+            notice = noticeText;
             headerAnchor = region;
             Bounds = virt;
             if (!Visible) Show();
@@ -79,6 +80,7 @@ namespace PoeStashPricer
         {
             labels = new List<OverlayLabel>();
             header = null;
+            notice = null;
             HideOverlay();
         }
 
@@ -118,16 +120,20 @@ namespace PoeStashPricer
             if (header != null)
             {
                 using (Font f = new Font("Segoe UI", 11f, FontStyle.Bold))
+                using (Font nf = new Font("Segoe UI", 10f, FontStyle.Bold))
                 using (SolidBrush bg = new SolidBrush(Color.FromArgb(18, 18, 22)))
                 using (Pen border = new Pen(Color.FromArgb(200, 160, 60), 2))
                 {
                     Size sz = TextRenderer.MeasureText(g, header, f);
+                    Size nsz = notice != null ? TextRenderer.MeasureText(g, notice, nf) : Size.Empty;
                     Rectangle anchor = ToClient(headerAnchor);
-                    Rectangle box = new Rectangle(anchor.X, anchor.Bottom + 6, sz.Width + 16, sz.Height + 10);
+                    Rectangle box = new Rectangle(anchor.X, anchor.Bottom + 6, Math.Max(sz.Width, nsz.Width) + 16, sz.Height + 10 + (notice != null ? nsz.Height + 2 : 0));
                     if (box.Bottom > ClientSize.Height) box.Y = anchor.Top - box.Height - 6;
                     g.FillRectangle(bg, box);
                     g.DrawRectangle(border, box);
                     TextRenderer.DrawText(g, header, f, new Point(box.X + 8, box.Y + 5), Color.Gold);
+                    if (notice != null)
+                        TextRenderer.DrawText(g, notice, nf, new Point(box.X + 8, box.Y + 5 + sz.Height + 2), Color.FromArgb(255, 160, 90));
                 }
             }
         }

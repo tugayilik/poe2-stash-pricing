@@ -20,40 +20,29 @@ Everyone starts from a clean setup: the download contains only the exe and this 
 
 ## How to use
 
-### 1. Save your tabs (once)
-
-The app recognises the open tab by comparing it with screenshots you save, so each tab has to be saved once:
-
-1. Open the stash in the game.
-2. In the app, click **Save tabs in order**.
-3. The app tells you on top of the game which tab to open (e.g. *"Open the 'Currency' tab in the game and press F6"*).
-   - Open that tab, **wait until it is fully shown**, then press **F6**. Keep the mouse off the stash.
-   - Press **F9** to skip a tab you don't have.
-4. Continue until all tabs are done.
-
-Supported tabs: **Currency, Fragments, Expedition, Breach, Abyss, Essence, Delirium, Runes** (sub-tabs Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments) and **Ritual**. For Fragments, saving one of its three sub-tabs is enough.
-
-To refresh a single tab, pick it in the list, click **Save selected** and press F6 in the game. **Delete** removes a saved tab and its last scan. **Delete all** removes all saved tabs, scan results and learned digits, so the app starts over as if freshly installed (league and currency choices are kept).
-
-### 2. Scan
-
-1. Open a tab in the game and press **F7**. The app recognises the tab, moves the mouse over each item and reads it with **Ctrl+C**.
+1. Open the stash in the game, open a tab and press **F7**. The app finds the stash on screen, moves the mouse over each item and reads it with **Ctrl+C**.
 2. Don't touch the mouse while it scans. **Esc** or **F7** again stops the scan.
 3. Prices appear over the items. **F8** hides or shows the price overlay.
+
+**Tabs are learned automatically.** The first scan of a special tab saves it: where its slots are, how it looks, and a name guessed from its items (Currency, Essence, Runes...). From then on the tab is recognised, its value counts in the total stash value, and its prices come back when you return to it. If a name is wrong, pick the tab in the list and click **Rename**.
+
+Special tabs are the ones with fixed slots: **Currency, Fragments, Expedition, Breach, Abyss, Essence, Delirium, Runes** (Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments) and **Ritual**. Normal and quad tabs can be scanned too, but they are not saved and not added to the total (they can hold two stacks of the same item, which the saved-tab logic would count once).
+
+**Delete** removes a saved tab and its last scan; its next scan learns it again. **Delete all** removes all saved tabs, scan results and learned digits, so the app starts over as if freshly installed (league and currency choices are kept).
 
 The last scan of every tab is kept:
 
 - When you switch to another tab the prices are hidden; when you come back to a scanned tab they come back **without pressing F7**.
 - Press F7 again whenever you want to rescan a tab.
 - Results survive closing the app.
-- poe.ninja updates prices hourly; saved scans are always valued at the current prices.
+- Prices are fetched from poe.ninja when the app starts and every 15 minutes while it is open (**Refresh prices** fetches them right away). If poe.ninja can't be reached or asks to slow down, the app keeps the last prices and tries again a few minutes later. Saved scans are always valued at the current prices.
 
 ### The app window
 
 - **Top:** the total value of all scanned tabs.
 - **Left:** your tabs with their value and last scan time. The tab open in the game is bold and marked with ▶.
 - **Right:** the items of the tab open in the game (or the one picked on the left) with quantities and prices.
-- **Show in:** show prices in Divine, Exalted, Chaos or automatically.
+- **League / Show in:** the league to price for, and whether prices are shown in Divine, Exalted, Chaos or automatically. (poe.ninja prices PoE2 per league only, so there is no realm to pick.)
 - **Hover delay (ms):** wait between moving onto an item and pressing Ctrl+C. Increase it (60–100) if items are read wrong or missed.
 - **Preview:** shows whether the open tab is recognised and which positions will be scanned.
 
@@ -61,11 +50,11 @@ The last scan of every tab is kept:
 
 | Key | Action |
 |---|---|
-| F6 | Save the open tab (while saving tabs) |
 | F7 | Scan the open tab / stop scanning |
 | F8 | Hide / show the price overlay |
-| F9 | Skip this tab (while saving tabs) |
 | Esc | Stop scanning |
+
+F7 and F8 are the defaults. To use other keys, click **Scan key** or **Overlay key** in the app and press the new key. Function keys (F1–F24) work alone; any other key needs Ctrl, Alt or Shift with it (e.g. Ctrl+Q), so typing in the game chat keeps working. The keys are saved and kept after **Delete all**. The rest of this README says F7/F8; read them as your own keys.
 
 ## Good to know
 
@@ -75,16 +64,17 @@ The last scan of every tab is kept:
   - Start with tabs that have many stacked items, like Currency or Essence.
   - Counts it can't read are shown as **"1?"** in the list. Scan a few more tabs, then rescan that tab.
 - Rare, Magic and Unidentified items are not priced ("no price").
-- You can scan a tab that isn't saved, but its result isn't added to the total stash value.
+- A tab is learned only when the app can tell what it is: from 3 priced items, or from even one item of a kind only that tab holds (e.g. a Breach splinter). An empty tab is scanned but learned on a later scan.
+- Look-alike tabs (the Runes sub-tabs: Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments) are learned separately. Two of them can get the same guessed name, e.g. "Runes 2"; use **Rename** to tell them apart.
 
 ## Troubleshooting
 
-- **F6 / F7 do nothing.**
-  - When you start, click **Save tabs in order** first (pressing F6 alone also starts it). The app then tells you on top of the game which tab to open.
-  - If the app says at start that hotkeys could not be registered, another program (another PoE tool, an overlay, a recording app) already uses F6/F7/F8. Close it or change its hotkeys, then restart the app.
+- **F7 does nothing.**
+  - If the app says at start that hotkeys could not be registered, another program (another PoE tool, an overlay, a recording app) already uses F7/F8. Pick other keys with **Scan key** / **Overlay key**, or close that program and restart the app.
   - If the game runs as administrator, run the app as administrator too.
-- **The mouse moves but nothing shows over the game / "The game picture is black".** The game is in exclusive **Fullscreen** mode, where Windows doesn't let other programs draw over the game (Windows 11 may still allow screenshots, so saving and scanning can seem to work while nothing appears). In the game open *Options → Graphics → Display Mode* and choose **Windowed Fullscreen**. The app warns about this when you press F6 or F7.
-- **"Stash not visible".** Open the stash and keep the mouse off it while pressing F6/F7.
+- **The mouse moves but nothing shows over the game / "The game picture is black".** The game is in exclusive **Fullscreen** mode, where Windows doesn't let other programs draw over the game (Windows 11 may still allow screenshots, so scanning can seem to work while nothing appears). In the game open *Options → Graphics → Display Mode* and choose **Windowed Fullscreen**. The app warns about this when you press F7.
+- **"Stash not visible".** Open the stash and keep the mouse off it while pressing F7.
+- **A tab got the wrong name or was learned wrongly.** Pick it in the list and click **Rename**, or **Delete** it and scan it again.
 - **Still stuck?** The app writes what it sees to `%APPDATA%\PoeStashPricer\log.txt` (paste that path into the Explorer address bar). Send that file along with your question.
 
 ## For developers

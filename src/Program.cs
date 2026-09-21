@@ -16,7 +16,7 @@ namespace PoeStashPricer
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // A second copy couldn't get the F6/F7/F8 hotkeys (the first one holds them) and would seem dead.
+            // A second copy couldn't get the hotkeys (the first one holds them) and would seem dead.
             bool first;
             using (System.Threading.Mutex single = new System.Threading.Mutex(true, "PoeStashPricer.SingleInstance", out first))
             {

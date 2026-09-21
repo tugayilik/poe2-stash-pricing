@@ -60,7 +60,7 @@ static class DetectTest
 
             PixelBuffer area = full.Crop(loc.Region);
             areas[name] = area;
-            TabProfile p = TabLibrary.Learn(name, area, loc.FrameColor, template);
+            TabProfile p = TabLibrary.Learn(name, name, area, loc.FrameColor, template, null);
             frames[name] = loc.FrameColor;
             profiles.Add(p);
 

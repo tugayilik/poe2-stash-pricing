@@ -24,6 +24,8 @@ namespace PoeStashPricer
         public string Key { get; set; }
         public DateTime ScannedAt { get; set; }
         public List<SavedItem> Items { get; set; }
+        public double ValueAtScan { get; set; }     // tab value in divines with the prices of the scan (0: unknown)
+        public DateTime PricesAtScan { get; set; }  // when those prices were loaded
 
         public TabResult() { Items = new List<SavedItem>(); }
     }
@@ -53,7 +55,12 @@ namespace PoeStashPricer
                     if (d != null)
                     {
                         // The serializer hands dates back in UTC.
-                        foreach (TabResult tr in d.Values) tr.ScannedAt = tr.ScannedAt.ToLocalTime();
+                        foreach (TabResult tr in d.Values)
+                        {
+                            tr.ScannedAt = tr.ScannedAt.ToLocalTime();
+                            if (tr.PricesAtScan.Year > 1) tr.PricesAtScan = tr.PricesAtScan.ToLocalTime();
+                            else tr.PricesAtScan = DateTime.MinValue;   // saved by an older version
+                        }
                         return d;
                     }
                 }
