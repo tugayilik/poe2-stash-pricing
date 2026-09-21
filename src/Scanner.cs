@@ -135,15 +135,23 @@ namespace PoeStashPricer
             double cs = cfg.CellSize;
 
             // Slots learned from the user's screenshot of this tab: exact positions, checked for an item now.
+            // A learned slot bigger than one cell (a 2x2 slot, or touching slots saved by version 1.2.0) is
+            // checked cell by cell; repeated reads of one item are merged afterwards.
             if (known != null)
-                foreach (Rectangle k in known)
+                foreach (Rectangle slot in known)
                 {
-                    ProbeGroup g = new ProbeGroup(1, 1);
-                    g.Rects[0, 0] = Offset(k, origin);
-                    g.Score[0, 0] = SlotDetector.TintFraction(pb, k, cfg.TintSensitivity);
-                    g.Active[0, 0] = Occupied(pb, k, cfg);
-                    g.Priority = -1;
-                    groups.Add(g);
+                    int kx = Math.Max(1, (int)Math.Round(slot.Width / cs)), ky = Math.Max(1, (int)Math.Round(slot.Height / cs));
+                    for (int r = 0; r < ky; r++)
+                        for (int c = 0; c < kx; c++)
+                        {
+                            Rectangle k = Cell(slot, kx, ky, r, c);
+                            ProbeGroup g = new ProbeGroup(1, 1);
+                            g.Rects[0, 0] = Offset(k, origin);
+                            g.Score[0, 0] = SlotDetector.TintFraction(pb, k, cfg.TintSensitivity);
+                            g.Active[0, 0] = Occupied(pb, k, cfg);
+                            g.Priority = -1;
+                            groups.Add(g);
+                        }
                 }
             List<Rectangle> blobs = SlotDetector.Detect(pb, cs, cfg.TintSensitivity);
 
@@ -155,11 +163,10 @@ namespace PoeStashPricer
 
             foreach (Rectangle blob in blobs)
             {
-                // Touching items in grid tabs form one area: split it into cells and test each one.
-                // Fixed-slot tabs keep slots apart with frames, so there an area is one slot, even a big one
-                // (Fragments has 2x2 slots); splitting it would read one stack several times.
-                int nx = cfg.FixedLayout ? 1 : Math.Max(1, (int)Math.Round(blob.Width / cs));
-                int ny = cfg.FixedLayout ? 1 : Math.Max(1, (int)Math.Round(blob.Height / cs));
+                // Touching items form one area: split it into cells and test each one. A big slot (Fragments
+                // has 2x2 ones) is split too; its cells all read the same item, which is merged afterwards.
+                int nx = Math.Max(1, (int)Math.Round(blob.Width / cs));
+                int ny = Math.Max(1, (int)Math.Round(blob.Height / cs));
                 ProbeGroup g = new ProbeGroup(ny, nx);
                 for (int r = 0; r < ny; r++)
                     for (int c = 0; c < nx; c++)
@@ -457,7 +464,10 @@ namespace PoeStashPricer
             }
 
             foreach (ProbeGroup g in groups) BuildItems(res, g, lookup);
-            MergeNearDuplicates(res, cfg.CellSize * 0.85);
+            // In a saved fixed-slot tab every item type has exactly one slot, so the same text read at several
+            // points is one item (a big slot, or two probes on one slot). Elsewhere two identical stacks can
+            // sit side by side, so only reads closer than a cell are merged there.
+            MergeNearDuplicates(res, cfg.FixedLayout ? double.MaxValue : cfg.CellSize * 0.85);
             ReadCountsFromScreen(res);
             return res;
         }
@@ -508,7 +518,12 @@ namespace PoeStashPricer
                     if (k.Text != si.Text) continue;
                     double dx = (k.Bounds.X + k.Bounds.Width / 2.0) - (si.Bounds.X + si.Bounds.Width / 2.0);
                     double dy = (k.Bounds.Y + k.Bounds.Height / 2.0) - (si.Bounds.Y + si.Bounds.Height / 2.0);
-                    if (Math.Sqrt(dx * dx + dy * dy) < maxDist) { twin = true; break; }
+                    if (Math.Sqrt(dx * dx + dy * dy) < maxDist)
+                    {
+                        k.Bounds = Rectangle.Union(k.Bounds, si.Bounds);   // e.g. all cells of a 2x2 slot
+                        twin = true;
+                        break;
+                    }
                 }
                 if (!twin) kept.Add(si);
             }
