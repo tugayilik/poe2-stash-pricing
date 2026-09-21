@@ -43,6 +43,7 @@ namespace PoeStashPricer
             base.OnHandleCreated(e);
             // Our own screenshots (scan, tab-change check) must see the game, not these labels.
             ExcludedFromCapture = Native.SetWindowDisplayAffinity(Handle, Native.WDA_EXCLUDEFROMCAPTURE);
+            Log.Write("overlay window created, excluded from capture: " + ExcludedFromCapture + ", covers " + Bounds);
         }
 
         public bool ExcludedFromCapture { get; private set; }

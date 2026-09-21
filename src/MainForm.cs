@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -97,7 +97,7 @@ namespace PoeStashPricer
 
             // Row 1: stash total
             FlowLayoutPanel r0 = Row();
-            lblGrand = new Label { AutoSize = true, Font = new Font("Segoe UI", 15f, FontStyle.Bold), ForeColor = Color.DarkGoldenrod, Text = "Total stash value: —" };
+            lblGrand = new Label { AutoSize = true, Font = new Font("Segoe UI", 15f, FontStyle.Bold), ForeColor = Color.DarkGoldenrod, Text = "Total stash value: â€”" };
             lblGrandSub = new Label { AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(S(10), S(10), 0, 0) };
             r0.Controls.AddRange(new Control[] { lblGrand, lblGrandSub });
             root.Controls.Add(r0);
@@ -219,15 +219,15 @@ namespace PoeStashPricer
             PriceTable t = table;
             if (results.Count == 0)
             {
-                lblGrand.Text = "Total stash value: —";
+                lblGrand.Text = "Total stash value: â€”";
                 lblGrandSub.Text = "No tab scanned yet. Open a tab in the game and press F7.";
                 return;
             }
             double sum = results.Values.Sum(r => ResultStore.Total(r, t));
             lblGrand.Text = "Total stash value: " + (t == null ? "loading prices..." : Fmt(sum));
-            string alt = t != null && t.ExPerDiv > 0 ? string.Format("≈ {0} div / {1} ex · ", Num(sum), Num(sum * t.ExPerDiv)) : "";
+            string alt = t != null && t.ExPerDiv > 0 ? string.Format("â‰ˆ {0} div / {1} ex Â· ", Num(sum), Num(sum * t.ExPerDiv)) : "";
             DateTime oldest = results.Values.Min(r => r.ScannedAt);
-            lblGrandSub.Text = string.Format("{0}{1} tabs scanned · oldest scan {2:dd.MM HH:mm}", alt, results.Count, oldest);
+            lblGrandSub.Text = string.Format("{0}{1} tabs scanned Â· oldest scan {2:dd.MM HH:mm}", alt, results.Count, oldest);
         }
 
         bool refreshingTabs;
@@ -247,7 +247,7 @@ namespace PoeStashPricer
                 ListViewItem li = new ListViewItem(d.Name) { Tag = d.Key };
                 li.SubItems.Add(r != null && t != null ? Fmt(ResultStore.Total(r, t)) : "");
                 string status = !saved ? "not saved" : r != null ? string.Format("scanned {0:dd.MM HH:mm}", r.ScannedAt) : "saved, not scanned";
-                if (d.Key == currentTab) status = "▶ " + status;
+                if (d.Key == currentTab) status = "â–¶ " + status;
                 li.SubItems.Add(status);
                 if (!saved) li.ForeColor = Color.Gray;
                 if (d.Key == currentTab) li.Font = new Font(tabList.Font, FontStyle.Bold);
@@ -302,7 +302,7 @@ namespace PoeStashPricer
             {
                 ListViewItem li = new ListViewItem(r.Name);
                 li.SubItems.Add(r.Qty.ToString("#,0") + (r.Unread ? "?" : ""));
-                li.SubItems.Add(r.Priced ? Fmt(r.Unit) : "—");
+                li.SubItems.Add(r.Priced ? Fmt(r.Unit) : "â€”");
                 li.SubItems.Add(r.Priced ? Fmt(r.Total) : "no price");
                 li.SubItems.Add(r.Category);
                 if (!r.Priced) li.ForeColor = Color.Gray;
@@ -311,13 +311,13 @@ namespace PoeStashPricer
             list.EndUpdate();
 
             if (key == null) lblView.Text = "Open a scanned tab in the game or pick a tab on the left.";
-            else if (tr == null) lblView.Text = TabName(key) + " · not scanned yet (F7)";
-            else lblView.Text = string.Format("{0} · {1} · scanned {2:dd.MM HH:mm}", TabName(key), Fmt(items.Sum(i => i.TotalDiv)), tr.ScannedAt);
+            else if (tr == null) lblView.Text = TabName(key) + " Â· not scanned yet (F7)";
+            else lblView.Text = string.Format("{0} Â· {1} Â· scanned {2:dd.MM HH:mm}", TabName(key), Fmt(items.Sum(i => i.TotalDiv)), tr.ScannedAt);
         }
 
         // ---------------------------------------------------------------- lifecycle / hotkeys
 
-        public const string Version = "1.2.2";
+        public const string Version = "1.2.3";
         readonly List<string> hotkeyProblems = new List<string>();
 
         protected override void OnHandleCreated(EventArgs e)
@@ -527,7 +527,7 @@ namespace PoeStashPricer
                 if (pi.Price != null)
                     labels.Add(new OverlayLabel { Bounds = pi.Bounds, Text = Fmt(pi.TotalDiv), Color = ValueColor(pi.TotalDiv) });
             double sum = items.Sum(i => i.TotalDiv), grand = results.Values.Sum(r => ResultStore.Total(r, table));
-            string header = string.Format("{0}: {1}  ·  scanned {2:HH:mm}  ·  Stash total: {3}  ·  F7: rescan · F8: hide",
+            string header = string.Format("{0}: {1}  Â·  scanned {2:HH:mm}  Â·  Stash total: {3}  Â·  F7: rescan Â· F8: hide",
                                           TabName(currentTab), Fmt(sum), tr.ScannedAt, Fmt(grand));
             overlay.ShowLabels(labels, header, stashRegion);
         }
@@ -565,8 +565,8 @@ namespace PoeStashPricer
                 PriceTable t = await Task.Run(() => PriceService.Load(league, report));
                 if (t.Count == 0) { SetStatus("Could not load prices. Check your internet connection and try again."); return; }
                 table = t;
-                string msg = string.Format("{0} prices: {1} items · 1 div = {2:0} ex · {3:HH:mm}", league, t.Count, t.ExPerDiv, t.LoadedAt);
-                if (t.Failed.Count > 0) msg += " · failed: " + string.Join(", ", t.Failed.ToArray());
+                string msg = string.Format("{0} prices: {1} items Â· 1 div = {2:0} ex Â· {3:HH:mm}", league, t.Count, t.ExPerDiv, t.LoadedAt);
+                if (t.Failed.Count > 0) msg += " Â· failed: " + string.Join(", ", t.Failed.ToArray());
                 SetStatus(msg);
                 RefreshAll();
             }
@@ -627,6 +627,26 @@ namespace PoeStashPricer
 
         const string NoGame = "Path of Exile 2 window not found. Use the hotkeys while in the game.";
         const string NoStash = "Stash not visible. Open the stash, keep the mouse off it and try again.";
+        bool fullscreenWarned;
+
+        /// <summary>
+        /// Exclusive Fullscreen: scanning may still work, but nothing can be drawn over the game, so the
+        /// instructions and prices would stay invisible. Say so once per session.
+        /// </summary>
+        void CheckFullscreen()
+        {
+            int state;
+            bool exclusive = Native.ExclusiveFullscreen(out state);
+            Log.Write("display state " + state + (exclusive ? " = exclusive fullscreen" : ""));
+            if (!exclusive || fullscreenWarned) return;
+            fullscreenWarned = true;
+            Problem("The game runs in Fullscreen mode: nothing can be shown over it. Set Display Mode to Windowed Fullscreen.", null);
+            MessageBox.Show(this,
+                "The game runs in exclusive Fullscreen mode. In this mode Windows doesn't let any other program draw over the game, " +
+                "so the instructions and prices of PoE2 Stash Pricer stay invisible (saving and scanning may still work; " +
+                "results appear in this window).\n\nIn the game open Options > Graphics and set Display Mode to \"Windowed Fullscreen\".",
+                Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
 
         /// <summary>
         /// The capture of the game is black: it runs in exclusive fullscreen, where Windows can neither capture
@@ -708,7 +728,7 @@ namespace PoeStashPricer
             {
                 EndWizard((previous != null ? previous + " " : "") + "All tabs saved. Now open a tab and press F7 to scan it.");
                 IntPtr g = Native.FindGameWindow();
-                if (g != IntPtr.Zero) ShowMessage((previous != null ? previous + "  " : "") + "All tabs saved. F7: scan · F8: hide this message", BuildConfig(g));
+                if (g != IntPtr.Zero) ShowMessage((previous != null ? previous + "  " : "") + "All tabs saved. F7: scan Â· F8: hide this message", BuildConfig(g));
                 return;
             }
             string next = TabLibrary.NameOf(wizard.Peek());
@@ -740,6 +760,7 @@ namespace PoeStashPricer
             string key = wizard.Peek();
             IntPtr game = await GetGame(fromHotkey);
             if (game == IntPtr.Zero) { Problem(fromHotkey ? "F6: the active window is not Path of Exile 2. Press F6 while in the game." : NoGame, null); return; }
+            CheckFullscreen();
 
             busy = true;
             try
@@ -756,14 +777,14 @@ namespace PoeStashPricer
                 {
                     string warn = string.Format("This looks like '{0}', which is already saved. Open the '{1}' tab and press F6 again.  F9: skip",
                                                 TabLibrary.NameOf(other.Key), TabLibrary.NameOf(key));
-                    ShowMessage(warn, cfg);
-                    SetStatus(warn);
+                    Problem(warn, cfg);
                     return;
                 }
 
                 TabProfile learned = TabLibrary.Learn(key, plan.Snapshot, plan.FrameColor, cfg);
                 TabLibrary.Save(learned);
                 profiles[key] = learned;
+                Log.Write("tab saved: " + key + ", " + learned.Slots.Count + " slots");
                 NoteStash(game, cfg.Region, plan.Snapshot, key);
 
                 // Show what was learned on top of the game.
@@ -778,12 +799,17 @@ namespace PoeStashPricer
                 if (wizard != null && wizard.Count > 0 && wizard.Peek() == key) wizard.Dequeue();
                 PromptWizard(done);
                 string header = wizard != null && wizard.Count > 0
-                    ? string.Format("{0}  Next: '{1}' → open it and press F6 · F9: skip", done, TabLibrary.NameOf(wizard.Peek()))
-                    : done + "  F7: scan · F8: hide";
+                    ? string.Format("{0}  Next: '{1}' â†’ open it and press F6 Â· F9: skip", done, TabLibrary.NameOf(wizard.Peek()))
+                    : done + "  F7: scan Â· F8: hide";
                 overlayState = "message";
                 overlay.ShowLabels(labels, header, cfg.Region);
+                Log.Write("overlay shown over " + cfg.Region + ": " + header);
             }
-            catch (Exception ex) { SetStatus("Save error: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Log.Write("save error: " + ex);
+                Problem("Save error: " + ex.Message, null);
+            }
             finally { busy = false; }
         }
 
@@ -836,6 +862,7 @@ namespace PoeStashPricer
             if (busy) return;
             IntPtr game = await GetGame(false);
             if (game == IntPtr.Zero) { MessageBox.Show(this, NoGame, Text); return; }
+            CheckFullscreen();
             busy = true;
             try
             {
@@ -860,7 +887,7 @@ namespace PoeStashPricer
                 labels.Add(new OverlayLabel { Bounds = cfg.Region, Color = Color.OrangeRed, Outline = true });
                 string tab = plan.Tab != null ? "Tab: " + TabLibrary.NameOf(plan.Tab.Key) : "Unsaved tab";
                 overlayState = "preview";
-                overlay.ShowLabels(labels, string.Format("Preview · {0} · {1} item positions will be scanned.  F8: hide", tab, full), cfg.Region);
+                overlay.ShowLabels(labels, string.Format("Preview Â· {0} Â· {1} item positions will be scanned.  F8: hide", tab, full), cfg.Region);
                 SetStatus(string.Format("Preview: {0}, {1} positions. If items are missed, save the tab again.", tab, full));
                 RefreshTabList();
                 RefreshItems();
@@ -885,6 +912,8 @@ namespace PoeStashPricer
                 return;
             }
             if ((DateTime.Now - t.LoadedAt).TotalMinutes > 60) LoadPrices();
+            Log.Write("F7 pressed | foreground: " + Native.ForegroundDescription());
+            CheckFullscreen();
 
             overlay.HideOverlay();
             overlayState = "hidden";
@@ -907,6 +936,8 @@ namespace PoeStashPricer
                 if (res.StashNotFound) { Problem(NoStash, cfg); return; }
 
                 string key = res.Tab != null ? res.Tab.Key : UnknownTab;
+                Log.Write(string.Format("scan done: tab {0}, {1} positions tried, {2} items read, {3} items, aborted={4}",
+                                        key, res.CellsTried, res.CellsCopied, res.Items.Count, res.Aborted));
                 TabResult tr = ResultStore.FromScan(key, res, cfg.Region);
                 if (res.Aborted && ResultFor(key) != null)
                 {
@@ -936,7 +967,11 @@ namespace PoeStashPricer
                     SetStatus(status);
                 }
             }
-            catch (Exception ex) { SetStatus("Scan error: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Log.Write("scan error: " + ex);
+                Problem("Scan error: " + ex.Message, null);
+            }
             finally
             {
                 busy = false;

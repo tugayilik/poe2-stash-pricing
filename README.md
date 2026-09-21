@@ -83,7 +83,7 @@ The last scan of every tab is kept:
   - When you start, click **Save tabs in order** first (pressing F6 alone also starts it). The app then tells you on top of the game which tab to open.
   - If the app says at start that hotkeys could not be registered, another program (another PoE tool, an overlay, a recording app) already uses F6/F7/F8. Close it or change its hotkeys, then restart the app.
   - If the game runs as administrator, run the app as administrator too.
-- **"The game picture is black" / nothing shows over the game.** The game is in exclusive Fullscreen. In the game open *Options → Graphics → Display Mode* and choose **Windowed Fullscreen**.
+- **The mouse moves but nothing shows over the game / "The game picture is black".** The game is in exclusive **Fullscreen** mode, where Windows doesn't let other programs draw over the game (Windows 11 may still allow screenshots, so saving and scanning can seem to work while nothing appears). In the game open *Options → Graphics → Display Mode* and choose **Windowed Fullscreen**. The app warns about this when you press F6 or F7.
 - **"Stash not visible".** Open the stash and keep the mouse off it while pressing F6/F7.
 - **Still stuck?** The app writes what it sees to `%APPDATA%\PoeStashPricer\log.txt` (paste that path into the Explorer address bar). Send that file along with your question.
 

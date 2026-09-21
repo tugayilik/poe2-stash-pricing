@@ -122,6 +122,20 @@ namespace PoeStashPricer
             catch { return false; }
         }
 
+        [DllImport("shell32.dll")] static extern int SHQueryUserNotificationState(out int state);
+
+        /// <summary>
+        /// True when the foreground app runs in exclusive (Direct3D) fullscreen. Screenshots may still work
+        /// there (Windows 11 fullscreen optimisations), but no other window can be drawn over the game.
+        /// Borderless "Windowed Fullscreen" reports a different state (busy), so it isn't confused with it.
+        /// </summary>
+        public static bool ExclusiveFullscreen(out int state)
+        {
+            state = 0;
+            try { SHQueryUserNotificationState(out state); } catch { }
+            return state == 3;   // QUNS_RUNNING_D3D_FULL_SCREEN
+        }
+
         /// <summary>Process name of the foreground window, for the diagnostic log.</summary>
         public static string ForegroundDescription()
         {
