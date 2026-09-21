@@ -1,86 +1,88 @@
 # PoE2 Stash Pricer
 
-Path of Exile 2'deki özel stash sekmelerini (Currency, Essence, Runes...) ekrandan tarayıp eşyaları [poe.ninja](https://poe.ninja/docs/api) fiyatlarıyla değerlendiren küçük bir Windows uygulaması. Her sekmenin değerini ve tüm stash'in toplam değerini gösterir, fiyatları oyunun üstüne eşyaların yanına yazar.
+A small Windows app that scans the special stash tabs of Path of Exile 2 (Currency, Essence, Runes...) on screen and prices the items with [poe.ninja](https://poe.ninja/docs/api). It shows the value of every tab and of your whole stash, and writes the prices over the items in the game.
 
-## Kurulum
+## Download
 
-Kurulum yok. `PoeStashPricer.exe`'yi istediğin bir klasöre koyup çalıştır. Windows 10/11'de hazır bulunan .NET Framework 4.8 ile çalışır.
+**[⬇ Download the latest release](https://github.com/tugayilik/poe2-stash-pricing/releases/latest)**. Get `PoeStashPricer-vX.Y.Z.zip` under *Assets*, unzip it anywhere and run `PoeStashPricer.exe`.
 
-> İmzasız bir exe olduğu için Windows ilk açılışta "Windows kişisel bilgisayarınızı korudu" uyarısı gösterebilir: **Ek bilgi → Yine de çalıştır**.
+No installation needed: it runs on the .NET Framework 4.8 that comes with Windows 10/11.
 
-Ayarlar, kaydettiğin sekmeler ve tarama sonuçları `%APPDATA%\PoeStashPricer\` klasöründe tutulur. Uygulamayı silmek için exe'yi ve bu klasörü silmen yeterli.
+> The exe is not signed, so Windows may show "Windows protected your PC" the first time: click **More info → Run anyway**.
 
-## Oyun ayarları
+Settings, saved tabs and scan results are kept in `%APPDATA%\PoeStashPricer\`. To remove the app, delete the exe and that folder.
 
-- Ekran modu **Windowed Fullscreen / Borderless** olmalı. Exclusive fullscreen'de ekran görüntüsü siyah gelebilir.
-- Oyun dili **İngilizce** olmalı. Eşya isimleri poe.ninja ile İngilizce eşleşiyor.
-- Çözünürlük önemli değil. Stash paneli ekranda otomatik bulunur.
+## Game settings
 
-## Kullanım
+- Display mode must be **Windowed Fullscreen / Borderless**. In exclusive fullscreen, screenshots can come out black.
+- Game language must be **English**. Item names are matched with poe.ninja in English.
+- Any resolution works: the stash panel is found on screen automatically.
 
-### 1. Sekmeleri kaydet (bir kerelik)
+## How to use
 
-Uygulama hangi sekmenin açık olduğunu senin kaydettiğin ekran görüntüleriyle tanır. Bu yüzden sekmeleri bir kez kaydetmen gerekir:
+### 1. Save your tabs (once)
 
-1. Oyunda stash'i aç.
-2. Uygulamada **Sırayla kaydet**'e bas.
-3. Uygulama oyunun üstünde hangi sekmeyi açman gerektiğini yazar (örneğin *"Oyunda 'Currency' sekmesini açın ve F6'ya basın"*).
-   - Sekmeyi aç ve **tamamen açılmasını bekleyip** **F6**'ya bas. Fare stash'in üstünde olmasın.
-   - Sende olmayan bir sekmeyi **F9** ile atla.
-4. Bütün sekmeler bitene kadar devam et.
+The app recognises the open tab by comparing it with screenshots you save, so each tab has to be saved once:
 
-Desteklenen sekmeler: **Currency, Fragments, Expedition, Breach, Abyss, Essence, Delirium, Runes** (Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments alt sekmeleri) ve **Ritual**. Fragments'ın 3 alt sekmesinden birini kaydetmek yeterli.
+1. Open the stash in the game.
+2. In the app, click **Save tabs in order**.
+3. The app tells you on top of the game which tab to open (e.g. *"Open the 'Currency' tab in the game and press F6"*).
+   - Open that tab, **wait until it is fully shown**, then press **F6**. Keep the mouse off the stash.
+   - Press **F9** to skip a tab you don't have.
+4. Continue until all tabs are done.
 
-Tek bir sekmeyi yenilemek için listeden seçip **Seçileni kaydet**'e bas ve oyunda F6'ya bas. Bir kaydı silmek için **Sil**.
+Supported tabs: **Currency, Fragments, Expedition, Breach, Abyss, Essence, Delirium, Runes** (sub-tabs Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments) and **Ritual**. For Fragments, saving one of its three sub-tabs is enough.
 
-### 2. Tara
+To refresh a single tab, pick it in the list, click **Save selected** and press F6 in the game. **Delete** removes a saved tab.
 
-1. Oyunda bir sekme aç ve **F7**'ye bas. Uygulama sekmeyi tanır, eşyaların üstünde fareyi gezdirip **Ctrl+C** ile eşya bilgisini okur.
-2. Tarama sırasında fareye dokunma. **Esc** ya da tekrar **F7** taramayı durdurur.
-3. Fiyatlar eşyaların üstünde görünür. **F8** fiyat katmanını gizler ya da gösterir.
+### 2. Scan
 
-Her sekmenin son taraması saklanır:
+1. Open a tab in the game and press **F7**. The app recognises the tab, moves the mouse over each item and reads it with **Ctrl+C**.
+2. Don't touch the mouse while it scans. **Esc** or **F7** again stops the scan.
+3. Prices appear over the items. **F8** hides or shows the price overlay.
 
-- Başka sekmeye geçince fiyatlar gizlenir, taranmış bir sekmeye dönünce **F7'ye basmadan** geri gelir.
-- Bir sekmeyi yeniden taramak istediğinde F7'ye basman yeterli.
-- Sonuçlar uygulama kapanınca da kaybolmaz.
-- Fiyatlar poe.ninja'dan saatlik güncellenir. Kayıtlı tarama sonuçları her zaman güncel fiyatla hesaplanır.
+The last scan of every tab is kept:
 
-### Uygulama penceresi
+- When you switch to another tab the prices are hidden; when you come back to a scanned tab they come back **without pressing F7**.
+- Press F7 again whenever you want to rescan a tab.
+- Results survive closing the app.
+- poe.ninja updates prices hourly; saved scans are always valued at the current prices.
 
-- **En üstte:** tüm taranmış sekmelerin toplam değeri.
-- **Solda:** sekmeler, her birinin değeri ve son tarama zamanı. Oyunda açık olan sekme kalın ve ▶ ile işaretli.
-- **Sağda:** oyunda açık olan (ya da soldan seçtiğin) sekmenin eşyaları, adetleri ve fiyatları.
-- **Göster:** fiyatların Divine, Exalted, Chaos ya da otomatik gösterilmesi.
-- **Gecikme (ms):** fare eşyanın üstüne geldikten sonra Ctrl+C'ye kadar bekleme. Eşyalar yanlış ya da eksik okunuyorsa artır (60–100).
-- **Önizle:** açık sekmenin tanınıp tanınmadığını ve nerelerin taranacağını gösterir.
+### The app window
 
-## Kısayollar
+- **Top:** the total value of all scanned tabs.
+- **Left:** your tabs with their value and last scan time. The tab open in the game is bold and marked with ▶.
+- **Right:** the items of the tab open in the game (or the one picked on the left) with quantities and prices.
+- **Show in:** show prices in Divine, Exalted, Chaos or automatically.
+- **Hover delay (ms):** wait between moving onto an item and pressing Ctrl+C. Increase it (60–100) if items are read wrong or missed.
+- **Preview:** shows whether the open tab is recognised and which positions will be scanned.
 
-| Tuş | İş |
+## Hotkeys
+
+| Key | Action |
 |---|---|
-| F6 | Açık sekmeyi kaydet (kayıt sırasında) |
-| F7 | Açık sekmeyi tara / taramayı durdur |
-| F8 | Fiyat katmanını gizle / göster |
-| F9 | Kayıt sırasında bu sekmeyi atla |
-| Esc | Taramayı durdur |
+| F6 | Save the open tab (while saving tabs) |
+| F7 | Scan the open tab / stop scanning |
+| F8 | Hide / show the price overlay |
+| F9 | Skip this tab (while saving tabs) |
+| Esc | Stop scanning |
 
-## Bilmen gerekenler
+## Good to know
 
-- **ToS:** Uygulama fareyi otomatik hareket ettirip Ctrl+C gönderir. Oyun sunucusuna bir aksiyon gitmez (sadece üstüne gelip kopyalar), ama otomatik girdi olduğu için GGG kuralları açısından gri alandır. Kullanım sorumluluğu sana ait.
-- Oyun **yönetici olarak** çalışıyorsa bu uygulamayı da yönetici olarak aç. Yoksa Windows tuş ve fare gönderimini engeller.
-- **Ekrandan okunan adetler:** Bazı eşyalar (Simulacrum, Shattered Triskelion gibi) kopyalanınca adet bilgisi vermez. Uygulama bunların adedini ikonun köşesindeki sayıdan okur. Rakamları taradığın diğer eşyalardan öğrenir, bu yüzden:
-  - İlk taramalarını Currency, Essence gibi stack'li eşya çok olan sekmelerle yap.
-  - Okuyamadığı adetleri listede **"1?"** diye gösterir. Birkaç sekme daha taradıktan sonra o sekmeyi yeniden tara.
-- Rare, Magic ve Unidentified eşyalar fiyatlanmaz ("fiyat yok").
-- Kayıtlı olmayan bir sekmeyi de tarayabilirsin, ama sonucu toplam stash değerine eklenmez.
+- **ToS:** the app moves the mouse and sends Ctrl+C automatically. Nothing is sent to the game server (it only hovers and copies), but automated input is a grey area under GGG's rules. Use at your own risk.
+- If the game runs **as administrator**, run this app as administrator too, otherwise Windows blocks the key and mouse input.
+- **Counts read from the screen:** some items (e.g. Simulacrum, Shattered Triskelion) copy without a stack size. For those the app reads the number in the icon's corner. It learns the digits from other items it scans, so:
+  - Start with tabs that have many stacked items, like Currency or Essence.
+  - Counts it can't read are shown as **"1?"** in the list. Scan a few more tabs, then rescan that tab.
+- Rare, Magic and Unidentified items are not priced ("no price").
+- You can scan a tab that isn't saved, but its result isn't added to the total stash value.
 
-## Geliştirici notları
+## For developers
 
-Kaynak kod `src\` altında. Hiçbir şey kurmadan Windows'un kendi C# derleyicisiyle derlenir:
+The source is in `src\`. It builds with the C# compiler that ships with Windows, nothing to install:
 
 ```bash
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-`tools\detect-test.ps1`, `samples\` klasöründeki tam ekran stash görüntülerinde panel bulma, yuva öğrenme ve sekme tanıma adımlarını oyuna girmeden çalıştırır ve işaretli görselleri `samples\out\` klasörüne yazar.
+`tools\detect-test.ps1` runs panel detection, slot learning and tab recognition on full-screen stash screenshots in `samples\` without the game, and writes annotated images to `samples\out\`.

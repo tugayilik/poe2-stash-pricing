@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -81,7 +81,7 @@ namespace PoeStashPricer
     public static class PriceService
     {
         const string Base = "https://poe.ninja/poe2/api/economy/";
-        const string UserAgent = "PoeStashPricer/1.0 (desktop stash pricing tool)";
+        const string UserAgent = "PoeStashPricer/1.1 (desktop stash pricing tool)";
 
         static readonly string[] ExchangeTypes =
         {
@@ -162,7 +162,7 @@ namespace PoeStashPricer
             foreach (string type in ExchangeTypes)
             {
                 step++;
-                if (progress != null) progress("Fiyatlar yükleniyor (" + step + "/" + total + "): " + type);
+                if (progress != null) progress("Loading prices (" + step + "/" + total + "): " + type);
                 try
                 {
                     Dictionary<string, object> root = (Dictionary<string, object>)Json().DeserializeObject(
@@ -188,7 +188,7 @@ namespace PoeStashPricer
             foreach (string type in StashTypes)
             {
                 step++;
-                if (progress != null) progress("Fiyatlar yükleniyor (" + step + "/" + total + "): " + type);
+                if (progress != null) progress("Loading prices (" + step + "/" + total + "): " + type);
                 try
                 {
                     Dictionary<string, object> root = (Dictionary<string, object>)Json().DeserializeObject(

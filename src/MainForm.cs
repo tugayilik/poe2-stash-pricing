@@ -45,7 +45,7 @@ namespace PoeStashPricer
         ProgressBar progress;
 
         static readonly string[] CurrencyKeys = { "auto", "divine", "exalted", "chaos" };
-        static readonly string[] CurrencyNames = { "Otomatik", "Divine", "Exalted", "Chaos" };
+        static readonly string[] CurrencyNames = { "Auto", "Divine", "Exalted", "Chaos" };
 
         public MainForm()
         {
@@ -97,7 +97,7 @@ namespace PoeStashPricer
 
             // Row 1: stash total
             FlowLayoutPanel r0 = Row();
-            lblGrand = new Label { AutoSize = true, Font = new Font("Segoe UI", 15f, FontStyle.Bold), ForeColor = Color.DarkGoldenrod, Text = "Toplam stash değeri: —" };
+            lblGrand = new Label { AutoSize = true, Font = new Font("Segoe UI", 15f, FontStyle.Bold), ForeColor = Color.DarkGoldenrod, Text = "Total stash value: —" };
             lblGrandSub = new Label { AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(S(10), S(10), 0, 0) };
             r0.Controls.AddRange(new Control[] { lblGrand, lblGrandSub });
             root.Controls.Add(r0);
@@ -122,8 +122,8 @@ namespace PoeStashPricer
                 settings.Save();
                 RefreshAll();
             };
-            btnRefresh = B("Fiyatları yenile", delegate { LoadPrices(); });
-            r1.Controls.AddRange(new Control[] { L("Lig:"), cbLeague, L("Göster:"), cbCurrency, btnRefresh });
+            btnRefresh = B("Refresh prices", delegate { LoadPrices(); });
+            r1.Controls.AddRange(new Control[] { L("League:"), cbLeague, L("Show in:"), cbCurrency, btnRefresh });
             root.Controls.Add(r1);
 
             // Row 3: tabs (left) + items of one tab (right)
@@ -135,11 +135,11 @@ namespace PoeStashPricer
             left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             left.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            left.Controls.Add(new Label { Text = "Sekmeler", AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(0, S(4), 0, S(4)) });
+            left.Controls.Add(new Label { Text = "Tabs", AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(0, S(4), 0, S(4)) });
             tabList = new ListView { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true, MultiSelect = false, HideSelection = false, HeaderStyle = ColumnHeaderStyle.Nonclickable };
-            tabList.Columns.Add("Sekme", S(160));
-            tabList.Columns.Add("Değer", S(80), HorizontalAlignment.Right);
-            tabList.Columns.Add("Durum", S(125));
+            tabList.Columns.Add("Tab", S(160));
+            tabList.Columns.Add("Value", S(80), HorizontalAlignment.Right);
+            tabList.Columns.Add("Status", S(125));
             tabList.ItemSelectionChanged += (s, e) =>
             {
                 if (!e.IsSelected || refreshingTabs) return;
@@ -148,9 +148,9 @@ namespace PoeStashPricer
             };
             left.Controls.Add(tabList);
             FlowLayoutPanel tabButtons = Row();
-            btnWizard = B("Sırayla kaydet", delegate { StartWizard(); });
-            btnCaptureOne = B("Seçileni kaydet", delegate { StartSingleCapture(); });
-            btnDeleteTab = B("Sil", delegate { DeleteSelectedTab(); });
+            btnWizard = B("Save tabs in order", delegate { StartWizard(); });
+            btnCaptureOne = B("Save selected", delegate { StartSingleCapture(); });
+            btnDeleteTab = B("Delete", delegate { DeleteSelectedTab(); });
             tabButtons.Controls.AddRange(new Control[] { btnWizard, btnCaptureOne, btnDeleteTab });
             left.Controls.Add(tabButtons);
             mid.Controls.Add(left, 0, 0);
@@ -161,24 +161,24 @@ namespace PoeStashPricer
             lblView = new Label { AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(0, S(4), 0, S(4)) };
             right.Controls.Add(lblView);
             list = new ListView { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true, GridLines = true, HideSelection = false };
-            list.Columns.Add("Eşya", S(200));
-            list.Columns.Add("Adet", S(55), HorizontalAlignment.Right);
-            list.Columns.Add("Birim fiyat", S(85), HorizontalAlignment.Right);
-            list.Columns.Add("Toplam", S(85), HorizontalAlignment.Right);
-            list.Columns.Add("Kategori", S(90));
+            list.Columns.Add("Item", S(200));
+            list.Columns.Add("Qty", S(55), HorizontalAlignment.Right);
+            list.Columns.Add("Unit price", S(85), HorizontalAlignment.Right);
+            list.Columns.Add("Total", S(85), HorizontalAlignment.Right);
+            list.Columns.Add("Category", S(90));
             right.Controls.Add(list);
             mid.Controls.Add(right, 1, 0);
             root.Controls.Add(mid);
 
             // Row 4: actions
             FlowLayoutPanel r3 = Row();
-            btnPreview = B("Önizle", delegate { Preview(); });
-            btnScan = B("Tara  (F7)", delegate { StartScan(false); });
+            btnPreview = B("Preview", delegate { Preview(); });
+            btnScan = B("Scan  (F7)", delegate { StartScan(false); });
             btnScan.Font = new Font(Font, FontStyle.Bold);
-            btnOverlay = B("Katman  (F8)", delegate { ToggleOverlay(); });
+            btnOverlay = B("Overlay  (F8)", delegate { ToggleOverlay(); });
             nudDelay = new NumericUpDown { Minimum = 10, Maximum = 500, Width = S(55), Margin = new Padding(0, S(4), S(4), 0), Value = Math.Max(10, Math.Min(500, settings.HoverDelay)) };
             nudDelay.ValueChanged += delegate { settings.HoverDelay = (int)nudDelay.Value; settings.Save(); };
-            r3.Controls.AddRange(new Control[] { btnPreview, btnScan, btnOverlay, L("Gecikme (ms):"), nudDelay });
+            r3.Controls.AddRange(new Control[] { btnPreview, btnScan, btnOverlay, L("Hover delay (ms):"), nudDelay });
             root.Controls.Add(r3);
 
             // Row 5: status
@@ -193,7 +193,7 @@ namespace PoeStashPricer
 
         static string TabName(string key)
         {
-            return key == UnknownTab ? "Kayıtlı olmayan sekme" : TabLibrary.NameOf(key);
+            return key == UnknownTab ? "Unsaved tab" : TabLibrary.NameOf(key);
         }
 
         TabResult ResultFor(string key)
@@ -218,15 +218,15 @@ namespace PoeStashPricer
             PriceTable t = table;
             if (results.Count == 0)
             {
-                lblGrand.Text = "Toplam stash değeri: —";
-                lblGrandSub.Text = "Henüz taranmış sekme yok. Oyunda bir sekme açıp F7'ye basın.";
+                lblGrand.Text = "Total stash value: —";
+                lblGrandSub.Text = "No tab scanned yet. Open a tab in the game and press F7.";
                 return;
             }
             double sum = results.Values.Sum(r => ResultStore.Total(r, t));
-            lblGrand.Text = "Toplam stash değeri: " + (t == null ? "fiyatlar yükleniyor..." : Fmt(sum));
+            lblGrand.Text = "Total stash value: " + (t == null ? "loading prices..." : Fmt(sum));
             string alt = t != null && t.ExPerDiv > 0 ? string.Format("≈ {0} div / {1} ex · ", Num(sum), Num(sum * t.ExPerDiv)) : "";
             DateTime oldest = results.Values.Min(r => r.ScannedAt);
-            lblGrandSub.Text = string.Format("{0}{1} sekme taranmış · en eski tarama {2:dd.MM HH:mm}", alt, results.Count, oldest);
+            lblGrandSub.Text = string.Format("{0}{1} tabs scanned · oldest scan {2:dd.MM HH:mm}", alt, results.Count, oldest);
         }
 
         bool refreshingTabs;
@@ -245,7 +245,7 @@ namespace PoeStashPricer
                 TabResult r = ResultFor(d.Key);
                 ListViewItem li = new ListViewItem(d.Name) { Tag = d.Key };
                 li.SubItems.Add(r != null && t != null ? Fmt(ResultStore.Total(r, t)) : "");
-                string status = !saved ? "kaydedilmedi" : r != null ? string.Format("tarandı {0:dd.MM HH:mm}", r.ScannedAt) : "kayıtlı, taranmadı";
+                string status = !saved ? "not saved" : r != null ? string.Format("scanned {0:dd.MM HH:mm}", r.ScannedAt) : "saved, not scanned";
                 if (d.Key == currentTab) status = "▶ " + status;
                 li.SubItems.Add(status);
                 if (!saved) li.ForeColor = Color.Gray;
@@ -302,16 +302,16 @@ namespace PoeStashPricer
                 ListViewItem li = new ListViewItem(r.Name);
                 li.SubItems.Add(r.Qty.ToString("#,0") + (r.Unread ? "?" : ""));
                 li.SubItems.Add(r.Priced ? Fmt(r.Unit) : "—");
-                li.SubItems.Add(r.Priced ? Fmt(r.Total) : "fiyat yok");
+                li.SubItems.Add(r.Priced ? Fmt(r.Total) : "no price");
                 li.SubItems.Add(r.Category);
                 if (!r.Priced) li.ForeColor = Color.Gray;
                 list.Items.Add(li);
             }
             list.EndUpdate();
 
-            if (key == null) lblView.Text = "Oyunda taranmış bir sekme açın veya soldan bir sekme seçin.";
-            else if (tr == null) lblView.Text = TabName(key) + " · henüz taranmadı (F7)";
-            else lblView.Text = string.Format("{0} · {1} · {2:dd.MM HH:mm} taraması", TabName(key), Fmt(items.Sum(i => i.TotalDiv)), tr.ScannedAt);
+            if (key == null) lblView.Text = "Open a scanned tab in the game or pick a tab on the left.";
+            else if (tr == null) lblView.Text = TabName(key) + " · not scanned yet (F7)";
+            else lblView.Text = string.Format("{0} · {1} · scanned {2:dd.MM HH:mm}", TabName(key), Fmt(items.Sum(i => i.TotalDiv)), tr.ScannedAt);
         }
 
         // ---------------------------------------------------------------- lifecycle / hotkeys
@@ -322,7 +322,7 @@ namespace PoeStashPricer
             bool ok = Native.RegisterHotKey(Handle, HK_CAPTURE, Native.MOD_NOREPEAT, Native.VK_F6);
             ok &= Native.RegisterHotKey(Handle, HK_SCAN, Native.MOD_NOREPEAT, Native.VK_F7);
             ok &= Native.RegisterHotKey(Handle, HK_OVERLAY, Native.MOD_NOREPEAT, Native.VK_F8);
-            if (!ok) SetStatus("Uyarı: F6/F7/F8 kısayolları kaydedilemedi (başka bir uygulama kullanıyor olabilir).");
+            if (!ok) SetStatus("Warning: could not register the F6/F7/F8 hotkeys (another program may be using them).");
         }
 
         protected override void OnShown(EventArgs e)
@@ -330,7 +330,7 @@ namespace PoeStashPricer
             base.OnShown(e);
             LoadLeagues();
             if (profiles.Count == 0)
-                SetStatus("Başlamak için 'Sırayla kaydet' ile sekmelerinizin görüntüsünü kaydedin.");
+                SetStatus("To start, save your tabs with 'Save tabs in order'.");
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -367,7 +367,7 @@ namespace PoeStashPricer
             if (overlay.Visible && !overlayState.StartsWith("tab:")) { overlay.HideOverlay(); overlayState = "hidden"; return; }
             overlayWanted = !overlayWanted;
             UpdateOverlay(true);
-            SetStatus(overlayWanted ? "Fiyat katmanı açık." : "Fiyat katmanı kapalı (F8 ile açın).");
+            SetStatus(overlayWanted ? "Price overlay on." : "Price overlay off (F8 to turn on).");
         }
 
         // ---------------------------------------------------------------- following the game
@@ -502,7 +502,7 @@ namespace PoeStashPricer
                 if (pi.Price != null)
                     labels.Add(new OverlayLabel { Bounds = pi.Bounds, Text = Fmt(pi.TotalDiv), Color = ValueColor(pi.TotalDiv) });
             double sum = items.Sum(i => i.TotalDiv), grand = results.Values.Sum(r => ResultStore.Total(r, table));
-            string header = string.Format("{0}: {1}  ·  {2:HH:mm} taraması  ·  Stash toplamı: {3}  ·  F7: yeniden tara · F8: gizle",
+            string header = string.Format("{0}: {1}  ·  scanned {2:HH:mm}  ·  Stash total: {3}  ·  F7: rescan · F8: hide",
                                           TabName(currentTab), Fmt(sum), tr.ScannedAt, Fmt(grand));
             overlay.ShowLabels(labels, header, stashRegion);
         }
@@ -511,12 +511,12 @@ namespace PoeStashPricer
 
         async void LoadLeagues()
         {
-            SetStatus("Ligler alınıyor...");
+            SetStatus("Loading leagues...");
             List<string> leagues;
             try { leagues = await Task.Run(() => PriceService.GetLeagues()); }
             catch (Exception ex)
             {
-                SetStatus("poe.ninja'ya erişilemedi: " + ex.Message);
+                SetStatus("Could not reach poe.ninja: " + ex.Message);
                 leagues = new List<string>();
                 if (!string.IsNullOrEmpty(settings.League)) leagues.Add(settings.League);
             }
@@ -538,14 +538,14 @@ namespace PoeStashPricer
             {
                 Action<string> report = s => BeginInvoke((Action)(() => SetStatus(s)));
                 PriceTable t = await Task.Run(() => PriceService.Load(league, report));
-                if (t.Count == 0) { SetStatus("Fiyat alınamadı. İnternet bağlantısını kontrol edip tekrar deneyin."); return; }
+                if (t.Count == 0) { SetStatus("Could not load prices. Check your internet connection and try again."); return; }
                 table = t;
-                string msg = string.Format("{0} fiyatları: {1} eşya · 1 div = {2:0} ex · {3:HH:mm}", league, t.Count, t.ExPerDiv, t.LoadedAt);
-                if (t.Failed.Count > 0) msg += " · alınamayan: " + string.Join(", ", t.Failed.ToArray());
+                string msg = string.Format("{0} prices: {1} items · 1 div = {2:0} ex · {3:HH:mm}", league, t.Count, t.ExPerDiv, t.LoadedAt);
+                if (t.Failed.Count > 0) msg += " · failed: " + string.Join(", ", t.Failed.ToArray());
                 SetStatus(msg);
                 RefreshAll();
             }
-            catch (Exception ex) { SetStatus("Fiyat yükleme hatası: " + ex.Message); }
+            catch (Exception ex) { SetStatus("Price loading error: " + ex.Message); }
             finally
             {
                 loadingPrices = false;
@@ -600,8 +600,8 @@ namespace PoeStashPricer
             };
         }
 
-        const string NoGame = "Path of Exile 2 penceresi bulunamadı. Oyundayken kısayol tuşlarını kullanın.";
-        const string NoStash = "Stash görünmüyor. Stash'i açın, farenin stash'in üstünde olmadığından emin olun ve tekrar deneyin.";
+        const string NoGame = "Path of Exile 2 window not found. Use the hotkeys while in the game.";
+        const string NoStash = "Stash not visible. Open the stash, keep the mouse off it and try again.";
 
         /// <summary>Where the stash would be for this game window (for placing messages before it is found).</summary>
         static Rectangle PredictedStash(ScanConfig cfg)
@@ -646,7 +646,7 @@ namespace PoeStashPricer
         void StartSingleCapture()
         {
             string key = SelectedTabKey();
-            if (key == null) { SetStatus("Önce listeden bir sekme seçin."); return; }
+            if (key == null) { SetStatus("Pick a tab in the list first."); return; }
             wizard = new Queue<string>(new[] { key });
             Native.RegisterHotKey(Handle, HK_SKIP, Native.MOD_NOREPEAT, Native.VK_F9);
             RefreshTabList();
@@ -667,13 +667,13 @@ namespace PoeStashPricer
             RefreshTabList();
             if (wizard == null || wizard.Count == 0)
             {
-                EndWizard((previous != null ? previous + " " : "") + "Kayıt tamamlandı. Artık bir sekme açıp F7 ile tarayabilirsiniz.");
+                EndWizard((previous != null ? previous + " " : "") + "All tabs saved. Now open a tab and press F7 to scan it.");
                 IntPtr g = Native.FindGameWindow();
-                if (g != IntPtr.Zero) ShowMessage((previous != null ? previous + "  " : "") + "Kayıt tamamlandı. F7: tara · F8: bu mesajı gizle", BuildConfig(g));
+                if (g != IntPtr.Zero) ShowMessage((previous != null ? previous + "  " : "") + "All tabs saved. F7: scan · F8: hide this message", BuildConfig(g));
                 return;
             }
             string next = TabLibrary.NameOf(wizard.Peek());
-            string text = string.Format("{0}Oyunda '{1}' sekmesini açın ve F6'ya basın.  F9: bu sekmeyi atla", previous != null ? previous + "  " : "", next);
+            string text = string.Format("{0}Open the '{1}' tab in the game and press F6.  F9: skip this tab", previous != null ? previous + "  " : "", next);
             SetStatus(text);
             IntPtr game = Native.FindGameWindow();
             if (game != IntPtr.Zero) ShowMessage(text, BuildConfig(game));
@@ -683,7 +683,7 @@ namespace PoeStashPricer
         {
             if (wizard == null || wizard.Count == 0 || busy) return;
             string skipped = TabLibrary.NameOf(wizard.Dequeue());
-            PromptWizard(skipped + " atlandı.");
+            PromptWizard(skipped + " skipped.");
         }
 
         async void CaptureTab(bool fromHotkey)
@@ -692,7 +692,7 @@ namespace PoeStashPricer
             string key = wizard != null && wizard.Count > 0 ? wizard.Peek() : SelectedTabKey();
             if (key == null)
             {
-                SetStatus("F6: hangi sekmeyi kaydedeceğimi bilmiyorum. 'Sırayla kaydet'e basın ya da listeden bir sekme seçip 'Seçileni kaydet' deyin.");
+                SetStatus("F6: which tab should be saved? Click 'Save tabs in order', or pick a tab in the list and click 'Save selected'.");
                 return;
             }
             IntPtr game = await GetGame(fromHotkey);
@@ -710,7 +710,7 @@ namespace PoeStashPricer
                 TabProfile other = TabLibrary.IdentifyExact(plan.Snapshot, plan.FrameColor, profiles.Values.Where(p => p.Key != key).ToList());
                 if (other != null)
                 {
-                    string warn = string.Format("Bu ekran zaten '{0}' olarak kayıtlı görünüyor. '{1}' sekmesini açıp tekrar F6'ya basın.  F9: atla",
+                    string warn = string.Format("This looks like '{0}', which is already saved. Open the '{1}' tab and press F6 again.  F9: skip",
                                                 TabLibrary.NameOf(other.Key), TabLibrary.NameOf(key));
                     ShowMessage(warn, cfg);
                     SetStatus(warn);
@@ -730,16 +730,16 @@ namespace PoeStashPricer
                     s.Offset(cfg.Region.Location);
                     labels.Add(new OverlayLabel { Bounds = s, Color = Color.Magenta, Outline = true });
                 }
-                string done = string.Format("'{0}' kaydedildi ({1} yuva).", TabLibrary.NameOf(key), learned.Slots.Count);
+                string done = string.Format("'{0}' saved ({1} slots).", TabLibrary.NameOf(key), learned.Slots.Count);
                 if (wizard != null && wizard.Count > 0 && wizard.Peek() == key) wizard.Dequeue();
                 PromptWizard(done);
                 string header = wizard != null && wizard.Count > 0
-                    ? string.Format("{0}  Sıradaki: '{1}' → açıp F6 · F9: atla", done, TabLibrary.NameOf(wizard.Peek()))
-                    : done + "  F7: tara · F8: gizle";
+                    ? string.Format("{0}  Next: '{1}' → open it and press F6 · F9: skip", done, TabLibrary.NameOf(wizard.Peek()))
+                    : done + "  F7: scan · F8: hide";
                 overlayState = "message";
                 overlay.ShowLabels(labels, header, cfg.Region);
             }
-            catch (Exception ex) { SetStatus("Kayıt hatası: " + ex.Message); }
+            catch (Exception ex) { SetStatus("Save error: " + ex.Message); }
             finally { busy = false; }
         }
 
@@ -747,7 +747,7 @@ namespace PoeStashPricer
         {
             string key = SelectedTabKey();
             if (key == null || (!profiles.ContainsKey(key) && !results.ContainsKey(key))) return;
-            if (MessageBox.Show(this, "'" + TabLibrary.NameOf(key) + "' kaydı ve son tarama sonucu silinsin mi?", Text, MessageBoxButtons.YesNo) != DialogResult.Yes) return;
+            if (MessageBox.Show(this, "'" + TabLibrary.NameOf(key) + "': delete the saved tab and its last scan?", Text, MessageBoxButtons.YesNo) != DialogResult.Yes) return;
             TabLibrary.Delete(key);
             profiles.Remove(key);
             if (results.Remove(key)) ResultStore.Save(results);
@@ -783,10 +783,10 @@ namespace PoeStashPricer
                             labels.Add(new OverlayLabel { Bounds = g.Rects[r, c], Color = Color.LimeGreen, Outline = true });
                         }
                 labels.Add(new OverlayLabel { Bounds = cfg.Region, Color = Color.OrangeRed, Outline = true });
-                string tab = plan.Tab != null ? "Sekme: " + TabLibrary.NameOf(plan.Tab.Key) : "Kayıtlı olmayan sekme";
+                string tab = plan.Tab != null ? "Tab: " + TabLibrary.NameOf(plan.Tab.Key) : "Unsaved tab";
                 overlayState = "preview";
-                overlay.ShowLabels(labels, string.Format("Önizleme · {0} · {1} eşya konumu taranacak.  F8: gizle", tab, full), cfg.Region);
-                SetStatus(string.Format("Önizleme: {0}, {1} konum. Kaçan eşya varsa sekmeyi yeniden kaydedin.", tab, full));
+                overlay.ShowLabels(labels, string.Format("Preview · {0} · {1} item positions will be scanned.  F8: hide", tab, full), cfg.Region);
+                SetStatus(string.Format("Preview: {0}, {1} positions. If items are missed, save the tab again.", tab, full));
                 RefreshTabList();
                 RefreshItems();
             }
@@ -801,11 +801,11 @@ namespace PoeStashPricer
                 return;
             }
             PriceTable t = table;
-            if (t == null) { SetStatus("Fiyatlar henüz yüklenmedi, biraz bekleyin."); return; }
+            if (t == null) { SetStatus("Prices are not loaded yet, please wait a moment."); return; }
             IntPtr game = await GetGame(fromHotkey);
             if (game == IntPtr.Zero)
             {
-                if (fromHotkey) SetStatus("F7: aktif pencere Path of Exile 2 değil. Oyundayken basın.");
+                if (fromHotkey) SetStatus("F7: the active window is not Path of Exile 2. Press it while in the game.");
                 else MessageBox.Show(this, NoGame, Text);
                 return;
             }
@@ -817,9 +817,9 @@ namespace PoeStashPricer
             List<TabProfile> known = profiles.Values.ToList();
             busy = true;
             scanner = new Scanner(cfg, game);
-            btnScan.Text = "Durdur (F7/Esc)";
+            btnScan.Text = "Stop (F7/Esc)";
             progress.Value = 0;
-            SetStatus("Taranıyor... (Esc ile durdurabilirsiniz, fareye dokunmayın)");
+            SetStatus("Scanning... (Esc to stop, do not touch the mouse)");
             Scanner sc = scanner;
             try
             {
@@ -834,7 +834,7 @@ namespace PoeStashPricer
                 TabResult tr = ResultStore.FromScan(key, res, cfg.Region);
                 if (res.Aborted && ResultFor(key) != null)
                 {
-                    SetStatus("Tarama durduruldu; bu sekmenin önceki sonucu korundu.");
+                    SetStatus("Scan stopped; the previous result of this tab was kept.");
                 }
                 else
                 {
@@ -846,26 +846,26 @@ namespace PoeStashPricer
 
                 if (!res.Aborted || ResultFor(key) == tr)
                 {
-                    string status = string.Format("Tarama bitti ({0}): {1} konum denendi, {2} eşya okundu.", TabName(key), res.CellsTried, res.CellsCopied);
-                    if (res.Aborted) status = "Tarama durduruldu (kısmi sonuç). " + status;
+                    string status = string.Format("Scan done ({0}): {1} positions tried, {2} items read.", TabName(key), res.CellsTried, res.CellsCopied);
+                    if (res.Aborted) status = "Scan stopped (partial result). " + status;
                     if (res.CellsTried > 0 && res.CellsCopied == 0)
-                        status = "Oyundan hiç eşya metni alınamadı! Oyun yönetici olarak çalışıyorsa bu uygulamayı da yönetici olarak açın, ya da gecikmeyi artırın.";
+                        status = "No item text could be copied from the game! If the game runs as administrator, run this app as administrator too, or increase the hover delay.";
                     else if (res.CellsTried == 0)
-                        status = "Bu sekmede eşya bulunamadı.";
-                    if (key == UnknownTab) status += " Bu sekme kayıtlı değil: toplam stash değerine eklenmez.";
+                        status = "No items found in this tab.";
+                    if (key == UnknownTab) status += " This tab is not saved, so it is not added to the total stash value.";
                     int unread = res.Items.Count(i => i.CountUnread);
                     if (unread > 0)
-                        status += string.Format(" {0} eşyanın adedi ekrandan okunamadı (listede \"?\"; 1 sayıldı). Rakamlar taramalarda öğreniliyor (bilinen: {1}); başka sekmeleri tarayıp bu sekmeyi yeniden tarayın.",
-                                                unread, DigitReader.Known == "" ? "yok" : DigitReader.Known);
+                        status += string.Format(" The count of {0} items could not be read from the screen (shown with \"?\", counted as 1). Digits are learned while scanning (known: {1}); scan other tabs, then rescan this one.",
+                                                unread, DigitReader.Known == "" ? "none" : DigitReader.Known);
                     SetStatus(status);
                 }
             }
-            catch (Exception ex) { SetStatus("Tarama hatası: " + ex.Message); }
+            catch (Exception ex) { SetStatus("Scan error: " + ex.Message); }
             finally
             {
                 busy = false;
                 scanner = null;
-                btnScan.Text = "Tara  (F7)";
+                btnScan.Text = "Scan  (F7)";
             }
         }
 
