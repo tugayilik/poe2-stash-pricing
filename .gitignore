@@ -1,0 +1,7 @@
+# Build output (build with build.ps1)
+dist/
+*.exe
+*.zip
+
+# Personal game screenshots used for offline tests (tools/detect-test.ps1)
+samples/
