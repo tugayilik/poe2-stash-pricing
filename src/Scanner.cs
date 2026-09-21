@@ -513,6 +513,25 @@ namespace PoeStashPricer
             return game != IntPtr.Zero && Native.GetForegroundWindow() != game;
         }
 
+        /// <summary>
+        /// Puts the user's clipboard text back. It may be a password copied from a password manager, which marks
+        /// it as private; put back as plain text it would land in the Windows clipboard history (Win+V) and the
+        /// cloud clipboard. So the restored copy is kept out of both.
+        /// </summary>
+        static void RestoreClipboard(string text)
+        {
+            try
+            {
+                DataObject d = new DataObject();
+                d.SetText(text);
+                d.SetData("ExcludeClipboardContentFromMonitorProcessing", new System.IO.MemoryStream(new byte[0]));
+                d.SetData("CanIncludeInClipboardHistory", new System.IO.MemoryStream(BitConverter.GetBytes(0)));
+                d.SetData("CanUploadToCloudClipboard", new System.IO.MemoryStream(BitConverter.GetBytes(0)));
+                Clipboard.SetDataObject(d, true);
+            }
+            catch { }
+        }
+
         static string ReadClipboard()
         {
             for (int i = 0; i < 5; i++)
@@ -666,10 +685,7 @@ namespace PoeStashPricer
             finally
             {
                 Native.MoveMouse(orig.X, orig.Y);
-                if (savedClipboard != null)
-                {
-                    try { Clipboard.SetText(savedClipboard); } catch { }
-                }
+                if (savedClipboard != null) RestoreClipboard(savedClipboard);
             }
 
             foreach (ProbeGroup g in groups) BuildItems(res, g, lookup);

@@ -86,3 +86,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
 `tools\detect-test.ps1` runs panel detection, slot learning and tab recognition on full-screen stash screenshots in `samples\` without the game, and writes annotated images to `samples\out\`.
+
+## License
+
+[MIT](LICENSE). Not affiliated with or endorsed by Grinding Gear Games or poe.ninja.

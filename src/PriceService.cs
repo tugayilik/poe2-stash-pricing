@@ -101,7 +101,7 @@ namespace PoeStashPricer
     public static class PriceService
     {
         const string Base = "https://poe.ninja/poe2/api/economy/";
-        const string UserAgent = "PoeStashPricer/1.3.0 (desktop stash pricing tool)";
+        const string UserAgent = "PoeStashPricer/1.3.1 (desktop stash pricing tool)";
 
         static readonly string[] ExchangeTypes =
         {
@@ -129,10 +129,24 @@ namespace PoeStashPricer
             req.Accept = "application/json";
             req.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
             req.Timeout = 20000;
+            req.ReadWriteTimeout = 20000;
             using (WebResponse resp = req.GetResponse())
             using (StreamReader r = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
-                return r.ReadToEnd();
+            {
+                // The biggest poe.ninja answer is a few MB; refuse anything absurd instead of filling the memory.
+                char[] buf = new char[64 * 1024];
+                StringBuilder sb = new StringBuilder();
+                int n;
+                while ((n = r.Read(buf, 0, buf.Length)) > 0)
+                {
+                    sb.Append(buf, 0, n);
+                    if (sb.Length > MaxResponseChars) throw new InvalidDataException("poe.ninja answer too large");
+                }
+                return sb.ToString();
+            }
         }
+
+        const int MaxResponseChars = 64 * 1024 * 1024;
 
         static string Q(string s) { return Uri.EscapeDataString(s); }
 
