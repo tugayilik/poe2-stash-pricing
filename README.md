@@ -16,6 +16,31 @@ A small Windows app that scans the special stash tabs of Path of Exile 2 (Curren
 - **Private by design.** Everything stays on your PC; only price lists are downloaded. See [Privacy and security](#privacy-and-security).
 - **Portable.** One small exe, no installer, runs on the .NET Framework that comes with Windows 10/11.
 
+## Supported tabs
+
+The app is made for the **special tabs with fixed slots**, where every item type has its own place. Each one is learned on its first scan and gets a name from the items it holds.
+
+| Tab | What it holds | Notes |
+|---|---|---|
+| **Currency** | Orbs, shards, scrolls, etchers, whetstones, flux... | |
+| **Fragments** | Fragments, Simulacrum, Shattered Triskelion... | Its big 2×2 slots are read as one item. Items that copy without a stack size get their count read from the icon. Tested on the *Fragments* sub-tab; the *Tablets* and *Trials* sub-tabs are learned separately if they hold priced items. |
+| **Expedition** | Expedition items, Verisium and alloys | |
+| **Breach** | Breach items | Learned even with a single item in it. |
+| **Abyss** | Abyssal bones and omens | Named Abyss even though it also holds omens. |
+| **Essence** | Essences | |
+| **Delirium** | Liquid emotions (Liquid Paranoia, Diluted Liquid Ire...) | |
+| **Runes** | 5 look-alike sub-tabs: **Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments** | Each sub-tab is learned and recognised separately. Kalguuran Runes and Ancient Augments get names like "Runes 2" / "Runes 3"; use **Rename** to name them. |
+| **Ritual** | Omens | |
+
+Each of these was scanned and learned in testing at 2560×1440, from full tabs to a tab with a single item.
+
+**Other tabs:**
+
+- **Normal and quad tabs** can be scanned too: prices show over the items, but the tab is not saved and not added to the total stash value (a normal tab can hold two stacks of the same item in different places, which the saved-tab logic would count as one).
+- **Map, Unique, Flask and other special tabs are not supported yet.** A scan works like on a normal tab (priced items get their prices, e.g. uniques), but the tab is not saved or added to the total.
+- **Gem tab:** not tested. A tab full of uncut gems may be learned as "Gems".
+- Items are priced when poe.ninja lists them: currency-like items by name, uniques by name and base type. Rare, magic and unidentified items show "no price".
+
 ## Download
 
 **[⬇ Download the latest release](https://github.com/tugayilik/poe2-stash-pricing/releases/latest)**. Get `PoeStashPricer-vX.Y.Z.zip` under *Assets*, unzip it anywhere and run `PoeStashPricer.exe`.
@@ -40,7 +65,7 @@ Everyone starts from a clean setup: the download contains only the exe, this REA
 
 **Tabs are learned automatically.** The first scan of a special tab saves it: where its slots are, how it looks, and a name guessed from its items (Currency, Essence, Runes...). From then on the tab is recognised, its value counts in the total stash value, and its prices come back when you return to it. If a name is wrong, pick the tab in the list and click **Rename**.
 
-Special tabs are the ones with fixed slots: **Currency, Fragments, Expedition, Breach, Abyss, Essence, Delirium, Runes** (Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments) and **Ritual**. Normal and quad tabs can be scanned too, but they are not saved and not added to the total (they can hold two stacks of the same item, which the saved-tab logic would count once).
+Which tabs are learned, and what happens with the others, is listed in [Supported tabs](#supported-tabs).
 
 **Delete** removes a saved tab and its last scan; its next scan learns it again. **Delete all** removes all saved tabs, scan results and learned digits, so the app starts over as if freshly installed (league and currency choices are kept).
 
