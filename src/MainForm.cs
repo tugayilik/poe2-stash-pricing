@@ -317,13 +317,17 @@ namespace PoeStashPricer
 
         // ---------------------------------------------------------------- lifecycle / hotkeys
 
+        public const string Version = "1.2.2";
+        readonly List<string> hotkeyProblems = new List<string>();
+
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            bool ok = Native.RegisterHotKey(Handle, HK_CAPTURE, Native.MOD_NOREPEAT, Native.VK_F6);
-            ok &= Native.RegisterHotKey(Handle, HK_SCAN, Native.MOD_NOREPEAT, Native.VK_F7);
-            ok &= Native.RegisterHotKey(Handle, HK_OVERLAY, Native.MOD_NOREPEAT, Native.VK_F8);
-            if (!ok) SetStatus("Warning: could not register the F6/F7/F8 hotkeys (another program may be using them).");
+            Log.Write("---- PoE2 Stash Pricer " + Version + " started | " + Environment.OSVersion + " | screen " + Screen.PrimaryScreen.Bounds.Size + " | dpi " + DeviceDpi);
+            if (!Native.RegisterHotKey(Handle, HK_CAPTURE, Native.MOD_NOREPEAT, Native.VK_F6)) hotkeyProblems.Add("F6");
+            if (!Native.RegisterHotKey(Handle, HK_SCAN, Native.MOD_NOREPEAT, Native.VK_F7)) hotkeyProblems.Add("F7");
+            if (!Native.RegisterHotKey(Handle, HK_OVERLAY, Native.MOD_NOREPEAT, Native.VK_F8)) hotkeyProblems.Add("F8");
+            Log.Write(hotkeyProblems.Count == 0 ? "hotkeys F6/F7/F8 registered" : "hotkeys NOT registered: " + string.Join(", ", hotkeyProblems.ToArray()));
         }
 
         protected override void OnShown(EventArgs e)
@@ -332,6 +336,26 @@ namespace PoeStashPricer
             LoadLeagues();
             if (profiles.Count == 0)
                 SetStatus("To start, save your tabs with 'Save tabs in order'.");
+            if (hotkeyProblems.Count > 0)
+            {
+                string keys = string.Join(", ", hotkeyProblems.ToArray());
+                SetStatus("Hotkeys not available: " + keys);
+                MessageBox.Show(this,
+                    "The hotkey(s) " + keys + " could not be registered: another program is already using them " +
+                    "(for example another PoE tool, an overlay or a recording app).\n\n" +
+                    "Close that program (or change its hotkeys) and restart PoE2 Stash Pricer. " +
+                    "Until then you can use the buttons in this window instead.",
+                    Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        /// <summary>Something the user asked for from the game didn't work: tell them where they are looking.</summary>
+        void Problem(string text, ScanConfig cfg)
+        {
+            Log.Write("problem: " + text);
+            SetStatus(text);
+            System.Media.SystemSounds.Exclamation.Play();
+            if (cfg != null) ShowMessage(text, cfg);
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -604,6 +628,20 @@ namespace PoeStashPricer
         const string NoGame = "Path of Exile 2 window not found. Use the hotkeys while in the game.";
         const string NoStash = "Stash not visible. Open the stash, keep the mouse off it and try again.";
 
+        /// <summary>
+        /// The capture of the game is black: it runs in exclusive fullscreen, where Windows can neither capture
+        /// it nor draw the overlay over it. A message box is the one thing that still gets through.
+        /// </summary>
+        void BlackScreen(ScanConfig cfg)
+        {
+            Problem("The game picture is black: set Options > Graphics > Display Mode to Windowed Fullscreen.", null);
+            MessageBox.Show(this,
+                "PoE2 Stash Pricer can't see the game: the screenshot comes out black.\n\n" +
+                "This happens when the game runs in exclusive Fullscreen. In the game open Options > Graphics and set " +
+                "Display Mode to \"Windowed Fullscreen\" (or Windowed), then try again.",
+                Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
         /// <summary>Where the stash would be for this game window (for placing messages before it is found).</summary>
         static Rectangle PredictedStash(ScanConfig cfg)
         {
@@ -690,14 +728,18 @@ namespace PoeStashPricer
         async void CaptureTab(bool fromHotkey)
         {
             if (busy) return;
-            string key = wizard != null && wizard.Count > 0 ? wizard.Peek() : SelectedTabKey();
-            if (key == null)
+            Log.Write("F6 pressed | foreground: " + Native.ForegroundDescription());
+            if (wizard == null || wizard.Count == 0)
             {
-                SetStatus("F6: which tab should be saved? Click 'Save tabs in order', or pick a tab in the list and click 'Save selected'.");
+                // F6 without "Save tabs in order": start it, so the first press already shows what to do.
+                Log.Write("F6 without a tab to save: starting 'Save tabs in order'");
+                System.Media.SystemSounds.Asterisk.Play();
+                StartWizard();
                 return;
             }
+            string key = wizard.Peek();
             IntPtr game = await GetGame(fromHotkey);
-            if (game == IntPtr.Zero) { SetStatus(NoGame); return; }
+            if (game == IntPtr.Zero) { Problem(fromHotkey ? "F6: the active window is not Path of Exile 2. Press F6 while in the game." : NoGame, null); return; }
 
             busy = true;
             try
@@ -705,7 +747,8 @@ namespace PoeStashPricer
                 overlay.HideOverlay();
                 ScanConfig cfg = BuildConfig(game);
                 ScanPlan plan = await RunSta(() => Scanner.Prepare(cfg, null));
-                if (!plan.StashVisible) { ShowMessage(NoStash, cfg); SetStatus(NoStash); return; }
+                if (plan.BlackScreen) { BlackScreen(cfg); return; }
+                if (!plan.StashVisible) { Problem(NoStash, cfg); return; }
 
                 // Catch the easy mistake of saving the wrong tab (forgot to switch).
                 TabProfile other = TabLibrary.IdentifyExact(plan.Snapshot, plan.FrameColor, profiles.Values.Where(p => p.Key != key).ToList());
@@ -800,7 +843,8 @@ namespace PoeStashPricer
                 ScanConfig cfg = BuildConfig(game);
                 List<TabProfile> known = profiles.Values.ToList();
                 ScanPlan plan = await RunSta(() => Scanner.Prepare(cfg, known));
-                if (!plan.StashVisible) { ShowMessage(NoStash, cfg); SetStatus(NoStash); return; }
+                if (plan.BlackScreen) { BlackScreen(cfg); return; }
+                if (!plan.StashVisible) { Problem(NoStash, cfg); return; }
                 NoteStash(game, cfg.Region, plan.Snapshot, plan.Tab != null ? plan.Tab.Key : null);
 
                 List<OverlayLabel> labels = new List<OverlayLabel>();
@@ -836,7 +880,7 @@ namespace PoeStashPricer
             IntPtr game = await GetGame(fromHotkey);
             if (game == IntPtr.Zero)
             {
-                if (fromHotkey) SetStatus("F7: the active window is not Path of Exile 2. Press it while in the game.");
+                if (fromHotkey) Problem("F7: the active window is not Path of Exile 2. Press it while in the game.", null);
                 else MessageBox.Show(this, NoGame, Text);
                 return;
             }
@@ -859,7 +903,8 @@ namespace PoeStashPricer
                     progress.Maximum = Math.Max(1, total);
                     progress.Value = Math.Min(done, progress.Maximum);
                 }))));
-                if (res.StashNotFound) { ShowMessage(NoStash, cfg); SetStatus(NoStash); return; }
+                if (res.BlackScreen) { BlackScreen(cfg); return; }
+                if (res.StashNotFound) { Problem(NoStash, cfg); return; }
 
                 string key = res.Tab != null ? res.Tab.Key : UnknownTab;
                 TabResult tr = ResultStore.FromScan(key, res, cfg.Region);

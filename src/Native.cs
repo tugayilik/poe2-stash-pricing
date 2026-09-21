@@ -122,6 +122,20 @@ namespace PoeStashPricer
             catch { return false; }
         }
 
+        /// <summary>Process name of the foreground window, for the diagnostic log.</summary>
+        public static string ForegroundDescription()
+        {
+            IntPtr hwnd = GetForegroundWindow();
+            try
+            {
+                uint pid;
+                GetWindowThreadProcessId(hwnd, out pid);
+                using (Process p = Process.GetProcessById((int)pid))
+                    return p.ProcessName + (IsGameWindow(hwnd) ? " (game)" : " (not the game)");
+            }
+            catch (Exception ex) { return "unknown (" + ex.Message + ")"; }
+        }
+
         public static IntPtr FindGameWindow()
         {
             foreach (Process p in Process.GetProcesses())

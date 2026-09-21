@@ -13,7 +13,7 @@ namespace PoeStashPricer
         public Rectangle Window;    // game client area, screen coordinates
         public int TintSensitivity;
         public double Threshold;
-        public bool FixedLayout;    // a saved fixed-slot tab: every separate item area is one slot (can be 2x2)
+        public bool FixedLayout;    // a saved fixed-slot tab: every item type has exactly one slot (some are 2x2)
         public int HoverDelay;
         public int CopyTimeout;
 
@@ -39,6 +39,7 @@ namespace PoeStashPricer
         public int CellsTried, CellsCopied;
         public bool Aborted;
         public bool StashNotFound;
+        public bool BlackScreen;       // the game picture can't be captured (exclusive fullscreen)
         public TabProfile Tab;         // recognised saved tab, or null
         public PixelBuffer Snapshot;   // the stash as captured before hovering (baseline for tab-change detection)
     }
@@ -47,6 +48,7 @@ namespace PoeStashPricer
     public class ScanPlan
     {
         public bool StashVisible;
+        public bool BlackScreen;              // the game picture can't be captured (exclusive fullscreen)
         public TabProfile Tab;                // recognised saved tab, or null
         public double[] FrameColor;           // colour of the tab's frame, or null
         public PixelBuffer Snapshot;          // the stash region only
@@ -307,7 +309,16 @@ namespace PoeStashPricer
             Thread.Sleep(150);
 
             PixelBuffer full = CaptureStable(win, guess);
+            if (IsBlack(full, guess))
+            {
+                // Exclusive fullscreen: Windows can't capture the game, the picture is black.
+                Log.Write("capture of the game window " + win + " is black (exclusive fullscreen?)");
+                plan.BlackScreen = true;
+                return plan;
+            }
             StashLocator.Result loc = StashLocator.Locate(full);
+            Log.Write(string.Format("stash search in window {0}: {1}/4 frame edges, region {2}, frame colour {3}",
+                win, loc.EdgesFound, loc.Region, loc.FrameColor == null ? "none" : string.Join(",", Array.ConvertAll(loc.FrameColor, c => ((int)c).ToString()))));
             if (!loc.StashVisible && profiles != null && profiles.Count > 0)
             {
                 // Faint frames (grey ones, at low resolution) can escape the frame search; if the predicted
@@ -320,9 +331,10 @@ namespace PoeStashPricer
 
             plan.Snapshot = full.Crop(loc.Region);
             cfg.Region = new Rectangle(win.X + loc.Region.X, win.Y + loc.Region.Y, loc.Region.Width, loc.Region.Height);
-            double difference;
+            double difference = 1;
             plan.FrameColor = loc.FrameColor;
             plan.Tab = profiles == null ? null : TabLibrary.Identify(plan.Snapshot, loc.FrameColor, profiles, out difference);
+            if (profiles != null) Log.Write("tab recognised: " + (plan.Tab != null ? plan.Tab.Key : "none") + " (difference " + difference.ToString("0.00") + ")");
             Size area = new Size(plan.Snapshot.Width, plan.Snapshot.Height);
             cfg.CellSize = Grid.CellSizeFor(area.Width);
             cfg.FixedLayout = plan.Tab != null;
@@ -348,6 +360,21 @@ namespace PoeStashPricer
                 prev = cur;
             }
             return prev;
+        }
+
+        /// <summary>True when the area is (nearly) uniformly black: what a capture of an exclusive-fullscreen game gives.</summary>
+        static bool IsBlack(PixelBuffer pb, Rectangle area)
+        {
+            area.Intersect(new Rectangle(0, 0, pb.Width, pb.Height));
+            long bright = 0; int n = 0;
+            for (int y = area.Top; y < area.Bottom; y += 5)
+                for (int x = area.Left; x < area.Right; x += 5)
+                {
+                    int o = y * pb.Stride + x * 4;
+                    if (Math.Max(pb.Px[o], Math.Max(pb.Px[o + 1], pb.Px[o + 2])) > 8) bright++;
+                    n++;
+                }
+            return n > 0 && bright < n / 100;
         }
 
         static double MeanDifference(PixelBuffer a, PixelBuffer b, Rectangle area)
@@ -411,6 +438,7 @@ namespace PoeStashPricer
             {
                 Native.MoveMouse(orig.X, orig.Y);
                 res.StashNotFound = true;
+                res.BlackScreen = plan.BlackScreen;
                 return res;
             }
             res.Snapshot = plan.Snapshot;

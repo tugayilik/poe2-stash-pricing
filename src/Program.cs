@@ -15,7 +15,19 @@ namespace PoeStashPricer
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+
+            // A second copy couldn't get the F6/F7/F8 hotkeys (the first one holds them) and would seem dead.
+            bool first;
+            using (System.Threading.Mutex single = new System.Threading.Mutex(true, "PoeStashPricer.SingleInstance", out first))
+            {
+                if (!first)
+                {
+                    MessageBox.Show("PoE2 Stash Pricer is already running (look for its window or taskbar button).",
+                                    "PoE2 Stash Pricer", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                Application.Run(new MainForm());
+            }
         }
     }
 }

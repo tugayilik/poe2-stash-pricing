@@ -77,6 +77,16 @@ The last scan of every tab is kept:
 - Rare, Magic and Unidentified items are not priced ("no price").
 - You can scan a tab that isn't saved, but its result isn't added to the total stash value.
 
+## Troubleshooting
+
+- **F6 / F7 do nothing.**
+  - When you start, click **Save tabs in order** first (pressing F6 alone also starts it). The app then tells you on top of the game which tab to open.
+  - If the app says at start that hotkeys could not be registered, another program (another PoE tool, an overlay, a recording app) already uses F6/F7/F8. Close it or change its hotkeys, then restart the app.
+  - If the game runs as administrator, run the app as administrator too.
+- **"The game picture is black" / nothing shows over the game.** The game is in exclusive Fullscreen. In the game open *Options → Graphics → Display Mode* and choose **Windowed Fullscreen**.
+- **"Stash not visible".** Open the stash and keep the mouse off it while pressing F6/F7.
+- **Still stuck?** The app writes what it sees to `%APPDATA%\PoeStashPricer\log.txt` (paste that path into the Explorer address bar). Send that file along with your question.
+
 ## For developers
 
 The source is in `src\`. It builds with the C# compiler that ships with Windows, nothing to install:
