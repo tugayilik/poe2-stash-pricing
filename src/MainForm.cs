@@ -39,7 +39,7 @@ namespace PoeStashPricer
 
         ComboBox cbLeague, cbCurrency;
         NumericUpDown nudDelay;
-        Button btnRefresh, btnWizard, btnCaptureOne, btnDeleteTab, btnPreview, btnScan, btnOverlay;
+        Button btnRefresh, btnWizard, btnCaptureOne, btnDeleteTab, btnDeleteAll, btnPreview, btnScan, btnOverlay;
         Label lblGrand, lblGrandSub, lblView, lblStatus;
         ListView tabList, list;
         ProgressBar progress;
@@ -151,7 +151,8 @@ namespace PoeStashPricer
             btnWizard = B("Save tabs in order", delegate { StartWizard(); });
             btnCaptureOne = B("Save selected", delegate { StartSingleCapture(); });
             btnDeleteTab = B("Delete", delegate { DeleteSelectedTab(); });
-            tabButtons.Controls.AddRange(new Control[] { btnWizard, btnCaptureOne, btnDeleteTab });
+            btnDeleteAll = B("Delete all", delegate { DeleteAll(); });
+            tabButtons.Controls.AddRange(new Control[] { btnWizard, btnCaptureOne, btnDeleteTab, btnDeleteAll });
             left.Controls.Add(tabButtons);
             mid.Controls.Add(left, 0, 0);
 
@@ -718,7 +719,7 @@ namespace PoeStashPricer
                 }
 
                 TabProfile learned = TabLibrary.Learn(key, plan.Snapshot, plan.FrameColor, cfg);
-                TabLibrary.Save(learned, plan.Snapshot);
+                TabLibrary.Save(learned);
                 profiles[key] = learned;
                 NoteStash(game, cfg.Region, plan.Snapshot, key);
 
@@ -741,6 +742,36 @@ namespace PoeStashPricer
             }
             catch (Exception ex) { SetStatus("Save error: " + ex.Message); }
             finally { busy = false; }
+        }
+
+        /// <summary>Back to a fresh install: saved tabs, scan results and learned digits are removed.</summary>
+        void DeleteAll()
+        {
+            if (busy) return;
+            if (MessageBox.Show(this,
+                    "Delete all saved tabs, scan results and learned digits?\n\nThe app starts over as if freshly installed; you will need to save your tabs again. Your league and currency choices are kept.",
+                    Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+            try
+            {
+                TabLibrary.DeleteAll();
+                ResultStore.DeleteAll();
+                DigitReader.DeleteAll();
+            }
+            catch (Exception ex)
+            {
+                SetStatus("Could not delete everything: " + ex.Message);
+            }
+            profiles.Clear();
+            results.Clear();
+            unknownResult = null;
+            currentTab = null;
+            viewKey = null;
+            if (wizard != null) EndWizard("");
+            watcher.Clear();
+            overlay.ClearContent();
+            overlayState = "hidden";
+            RefreshAll();
+            SetStatus("Everything deleted. To start again, save your tabs with 'Save tabs in order'.");
         }
 
         void DeleteSelectedTab()

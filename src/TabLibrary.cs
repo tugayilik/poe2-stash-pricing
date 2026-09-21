@@ -100,6 +100,8 @@ namespace PoeStashPricer
                         }
                         File.WriteAllText(f, js.Serialize(p));
                     }
+                    // Versions before 1.2 kept a screenshot of every tab; everything needed is in the JSON now.
+                    if (File.Exists(png) && p.ItemMask != null && p.ItemMask.Count > 0) File.Delete(png);
                     res[t.Key] = p;
                 }
                 catch { }
@@ -107,13 +109,17 @@ namespace PoeStashPricer
             return res;
         }
 
-        public static void Save(TabProfile p, PixelBuffer snapshot)
+        /// <summary>
+        /// Stores what was learned (slot positions, signature, frame colour). The screenshot itself is not
+        /// kept: nothing needs it later, and no pictures of the user's stash are left on disk.
+        /// </summary>
+        public static void Save(TabProfile p)
         {
             Directory.CreateDirectory(Dir);
             JavaScriptSerializer js = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
             File.WriteAllText(Path.Combine(Dir, p.Key + ".json"), js.Serialize(p));
-            // Keep the screenshot too: handy for checking what was learned.
-            using (Bitmap bmp = snapshot.ToBitmap()) bmp.Save(Path.Combine(Dir, p.Key + ".png"), ImageFormat.Png);
+            string png = Path.Combine(Dir, p.Key + ".png");   // left by versions before 1.2
+            if (File.Exists(png)) File.Delete(png);
         }
 
         public static void Delete(string key)
@@ -123,6 +129,14 @@ namespace PoeStashPricer
                 string f = Path.Combine(Dir, key + ext);
                 if (File.Exists(f)) File.Delete(f);
             }
+        }
+
+        /// <summary>Removes every saved tab (and screenshots older versions kept).</summary>
+        public static void DeleteAll()
+        {
+            if (!Directory.Exists(Dir)) return;
+            foreach (string f in Directory.GetFiles(Dir, "*.json")) File.Delete(f);
+            foreach (string f in Directory.GetFiles(Dir, "*.png")) File.Delete(f);
         }
 
         /// <summary>Learns a tab's slots from a clean screenshot of its stash area.</summary>

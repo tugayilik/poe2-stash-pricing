@@ -48,6 +48,14 @@ namespace PoeStashPricer
             }
         }
 
+        /// <summary>Forgets every learned digit.</summary>
+        public static void DeleteAll()
+        {
+            store = new Store();
+            dirty = false;
+            if (File.Exists(FilePath)) File.Delete(FilePath);
+        }
+
         public static void Save()
         {
             if (!dirty) return;

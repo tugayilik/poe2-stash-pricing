@@ -62,6 +62,11 @@ namespace PoeStashPricer
             return new Dictionary<string, TabResult>();
         }
 
+        public static void DeleteAll()
+        {
+            if (File.Exists(FilePath)) File.Delete(FilePath);
+        }
+
         public static void Save(Dictionary<string, TabResult> results)
         {
             try

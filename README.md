@@ -10,7 +10,7 @@ No installation needed: it runs on the .NET Framework 4.8 that comes with Window
 
 > The exe is not signed, so Windows may show "Windows protected your PC" the first time: click **More info → Run anyway**.
 
-Settings, saved tabs and scan results are kept in `%APPDATA%\PoeStashPricer\`. To remove the app, delete the exe and that folder.
+Everyone starts from a clean setup: the download contains only the exe and this README. Each user's saved tabs, scan results and learned digits are kept on their own PC in `%APPDATA%\PoeStashPricer\`. Screenshots of your stash are only used while saving a tab and are never stored. To start over, click **Delete all** in the app; to remove the app, delete the exe and that folder.
 
 ## Game settings
 
@@ -33,7 +33,7 @@ The app recognises the open tab by comparing it with screenshots you save, so ea
 
 Supported tabs: **Currency, Fragments, Expedition, Breach, Abyss, Essence, Delirium, Runes** (sub-tabs Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments) and **Ritual**. For Fragments, saving one of its three sub-tabs is enough.
 
-To refresh a single tab, pick it in the list, click **Save selected** and press F6 in the game. **Delete** removes a saved tab.
+To refresh a single tab, pick it in the list, click **Save selected** and press F6 in the game. **Delete** removes a saved tab and its last scan. **Delete all** removes all saved tabs, scan results and learned digits, so the app starts over as if freshly installed (league and currency choices are kept).
 
 ### 2. Scan
 
