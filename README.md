@@ -16,6 +16,7 @@ A small Windows app that scans the special stash tabs of Path of Exile 2 (Curren
 - **Your keys.** F7/F8 by default, rebindable to any function key or a Ctrl/Alt/Shift combination.
 - **Private by design.** Everything stays on your PC; only price lists are downloaded. See [Privacy and security](#privacy-and-security).
 - **Portable.** One small exe, no installer, runs on the .NET Framework that comes with Windows 10/11.
+- **Updates in one click.** When a new version is out, an **Update to vX.Y.Z** button appears. It downloads the release from GitHub, checks it against the release's SHA-256 list and restarts the app; your tabs, scans and settings stay.
 
 ## Supported tabs
 
@@ -46,7 +47,7 @@ The maps come from `tools/layouts/` and `tools/make-layouts.ps1` (see *For devel
 
 ## Download
 
-**[⬇ Download the latest release](https://github.com/tugayilik/poe2-stash-pricing/releases/latest)**. Get `PoeStashPricer-vX.Y.Z.zip` under *Assets*, unzip it anywhere and run `PoeStashPricer.exe`.
+**[⬇ Download the latest release](https://github.com/tugayilik/poe2-stash-pricing/releases/latest)**. Get `PoeStashPricer-vX.Y.Z.zip` under *Assets*, unzip it anywhere and run `PoeStashPricer.exe`. Later versions install from the app itself (**Update to vX.Y.Z** button, from 1.4.1 on).
 
 No installation needed: it runs on the .NET Framework 4.8 that comes with Windows 10/11.
 
@@ -131,7 +132,7 @@ F7 and F8 are the defaults. To use other keys, click **Scan key** or **Overlay k
 
 ## Privacy and security
 
-- **Nothing about you leaves your PC.** The only network traffic is downloading league and price lists from poe.ninja over HTTPS. No account, no telemetry, no updates checked in the background.
+- **Nothing about you leaves your PC.** The only network traffic, all over HTTPS: league and price lists from poe.ninja, and a look at this repository's latest GitHub release (at start and every 6 hours) to tell you when there is a new version. No account, no telemetry.
 - **Screenshots stay in memory.** The app looks at the game window to find the stash and the items, and forgets the pictures after the scan. They are never saved or sent.
 - **Your clipboard is put back.** Scanning copies items with Ctrl+C; afterwards the text you had on the clipboard is restored, kept out of the Windows clipboard history and cloud clipboard (it could be a password from a password manager).
 - **Input only goes to the game.** The mouse moves and Ctrl+C presses stop the moment another window comes to the front.

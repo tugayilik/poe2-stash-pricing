@@ -20,6 +20,13 @@ namespace PoeStashPricer
             bool first;
             using (System.Threading.Mutex single = new System.Threading.Mutex(true, "PoeStashPricer.SingleInstance", out first))
             {
+                // Started by an update: the previous version is still closing, wait for it.
+                if (!first && Array.IndexOf(Environment.GetCommandLineArgs(), "--updated") > 0)
+                {
+                    try { first = single.WaitOne(15000); }
+                    catch (System.Threading.AbandonedMutexException) { first = true; }   // it exited without letting go
+                }
+                if (first) Updater.CleanUp();
                 if (!first)
                 {
                     MessageBox.Show("PoE2 Stash Pricer is already running (look for its window or taskbar button).",
