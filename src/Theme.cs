@@ -288,4 +288,64 @@ namespace PoeStashPricer
             return f;
         }
     }
+
+    /// <summary>A check box drawn in the theme: a white box with a dark tick when checked, so it reads at a glance.</summary>
+    public class DarkCheckBox : Control
+    {
+        bool isChecked, hot;
+        public event EventHandler CheckedChanged;
+
+        public bool Checked
+        {
+            get { return isChecked; }
+            set
+            {
+                if (value == isChecked) return;
+                isChecked = value;
+                Invalidate();
+                if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty);
+            }
+        }
+
+        public DarkCheckBox()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
+            Cursor = Cursors.Hand;
+            ForeColor = Theme.Text;
+            BackColor = Theme.Bg;
+        }
+
+        public override Size GetPreferredSize(Size proposed)
+        {
+            Size t = TextRenderer.MeasureText(Text, Font);
+            return new Size(t.Height + 6 + t.Width, t.Height + 4);
+        }
+
+        protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); Size = GetPreferredSize(Size.Empty); Invalidate(); }
+        protected override void OnFontChanged(EventArgs e) { base.OnFontChanged(e); Size = GetPreferredSize(Size.Empty); }
+        protected override void OnMouseEnter(EventArgs e) { hot = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { hot = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnClick(EventArgs e) { Checked = !Checked; base.OnClick(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.Clear(BackColor);
+            int box = Math.Min(Height - 4, TextRenderer.MeasureText("X", Font).Height - 2), y = (Height - box) / 2;
+            Rectangle r = new Rectangle(0, y, box, box);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            if (isChecked)
+            {
+                using (SolidBrush br = new SolidBrush(Color.White)) g.FillRectangle(br, r);
+                using (Pen p = new Pen(Theme.Bg, Math.Max(2f, box / 7f)))
+                    g.DrawLines(p, new[] { new PointF(r.X + box * 0.22f, r.Y + box * 0.52f), new PointF(r.X + box * 0.42f, r.Y + box * 0.72f), new PointF(r.X + box * 0.78f, r.Y + box * 0.3f) });
+            }
+            else
+            {
+                using (SolidBrush br = new SolidBrush(Theme.Surface2)) g.FillRectangle(br, r);
+                using (Pen p = new Pen(hot ? Theme.Gold : Theme.Border)) g.DrawRectangle(p, r.X, r.Y, r.Width - 1, r.Height - 1);
+            }
+            TextRenderer.DrawText(g, Text, Font, new Point(box + 6, (Height - TextRenderer.MeasureText(Text, Font).Height) / 2), hot ? Theme.GoldBright : ForeColor, TextFormatFlags.NoPrefix);
+        }
+    }
 }

@@ -42,6 +42,17 @@ namespace PoeStashPricer
         Label lblGrand, lblGrandSub, lblView, lblStatus;
         DarkListView tabList, list;
         ThinProgress progress;
+        DarkCheckBox chkHover;
+
+        // Price on hover: the tab on screen, ready for the user's own mouse.
+        HoverFrame frame;
+        readonly System.Windows.Forms.Timer hoverTimer = new System.Windows.Forms.Timer { Interval = 40 };
+        Point restPos;
+        DateTime restSince = DateTime.MaxValue;
+        Rectangle lastSlot;             // slot copied last; copied again only after the mouse was elsewhere
+        bool copying, clickHeld;
+        int recheckTries;
+        DateTime recheckAt = DateTime.MaxValue;
 
         static readonly string[] CurrencyKeys = { "auto", "divine", "exalted", "chaos" };
         static readonly string[] CurrencyNames = { "Auto", "Divine", "Exalted", "Chaos" };
@@ -62,6 +73,8 @@ namespace PoeStashPricer
             IntPtr overlayHandle = overlay.Handle;
             watchTimer.Tick += WatchTick;
             watchTimer.Start();
+            hoverTimer.Tick += HoverTick;
+            hoverTimer.Start();
         }
 
         int S(int px) { return (int)Math.Round(px * dpi); }
@@ -234,10 +247,26 @@ namespace PoeStashPricer
             actions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             FlowLayoutPanel main = Row();
             main.WrapContents = false;
-            btnScan = Theme.Button("Scan  (" + ScanKeyName + ")", delegate { StartScan(false); }, dpi, true);
+            btnScan = Theme.Button(ScanButtonText(), delegate { StartScan(false); }, dpi, true);
             btnOverlay = B("Overlay  (" + OverlayKeyName + ")", delegate { ToggleOverlay(); });
             btnPreview = B("Preview", delegate { Preview(); });
-            main.Controls.AddRange(new Control[] { btnScan, btnOverlay, btnPreview });
+            chkHover = new DarkCheckBox { Text = "Price on hover", Font = Font, Checked = settings.HoverPrices, Margin = new Padding(S(8), S(8), 0, 0) };
+            new ToolTip().SetToolTip(chkHover, "The app doesn't move the mouse: " + ScanKeyName + " (or opening a known tab) gets the tab ready,\n" +
+                                               "then rest the mouse on an item and its price shows.");
+            chkHover.CheckedChanged += delegate
+            {
+                settings.HoverPrices = chkHover.Checked;
+                settings.Save();
+                frame = null;
+                btnScan.Text = ScanButtonText();
+                SetStatus(settings.HoverPrices
+                    ? "Price on hover: open a stash tab (press " + ScanKeyName + " on a tab the app doesn't know), then rest the mouse on an item."
+                    : "Price on hover off: " + ScanKeyName + " scans the whole tab.");
+                nextDetect = DateTime.MinValue;   // get the tab on screen ready right away
+                settleUntil = DateTime.Now.AddMilliseconds(1500);
+                UpdateOverlay(true);
+            };
+            main.Controls.AddRange(new Control[] { btnScan, btnOverlay, btnPreview, chkHover });
             actions.Controls.Add(main, 0, 0);
 
             FlowLayoutPanel extra = Row();
@@ -439,7 +468,7 @@ namespace PoeStashPricer
 
         void UpdateHotkeyTexts()
         {
-            if (!busy) btnScan.Text = "Scan  (" + ScanKeyName + ")";
+            if (!busy) btnScan.Text = ScanButtonText();
             btnOverlay.Text = "Overlay  (" + OverlayKeyName + ")";
             btnScanKey.Text = "Scan key: " + ScanKeyName;
             btnOverlayKey.Text = "Overlay key: " + OverlayKeyName;
@@ -640,8 +669,13 @@ namespace PoeStashPricer
                 watcher.SetBaseline(full.Crop(local), stashRegion, 12, 12);
             }
 
+            // Price on hover: a tab the app knows is made ready as soon as it is on screen.
+            if (settings.HoverPrices && stashVisible && tab != null && (frame == null || frame.TabKey != tab.Key || frame.Region != stashRegion))
+                Arm(gameHwnd, win, full, loc, tab);
+
             // A paged tab (Tablets...) shows one of several pages: like an unknown tab, its last scan is not kept.
             string key = stashVisible && tab != null && !tab.Paged ? tab.Key : null;
+            if (FrameOnScreen(tab, loc)) key = frame.Key;   // hover prices of an unsaved or paged tab stay shown
             bool changed = key != currentTab;
             if (changed)
             {
@@ -662,8 +696,10 @@ namespace PoeStashPricer
 
             bool gameFront = Native.IsGameWindow(Native.GetForegroundWindow());
             TabResult tr = ResultFor(currentTab);
-            bool show = overlayWanted && gameFront && stashVisible && tr != null && !stashRegion.IsEmpty;
-            string state = show ? string.Format("tab:{0}:{1:O}:{2}:{3}:{4}", currentTab, tr.ScannedAt, stashRegion, table == null ? 0 : table.LoadedAt.Ticks, settings.DisplayCurrency) : "hidden";
+            bool hoverHere = settings.HoverPrices && frame != null && frame.Key == currentTab;
+            bool show = overlayWanted && gameFront && stashVisible && (tr != null || hoverHere) && !stashRegion.IsEmpty;
+            string state = show ? string.Format("tab:{0}:{1:O}:{2}:{3}:{4}:{5}", currentTab, tr == null ? DateTime.MinValue : tr.ScannedAt, stashRegion,
+                                                 table == null ? 0 : table.LoadedAt.Ticks, settings.DisplayCurrency, hoverHere) : "hidden";
             if (!force && state == overlayState) return;
             overlayState = state;
             if (!show) { overlay.HideOverlay(); return; }
@@ -674,9 +710,12 @@ namespace PoeStashPricer
                 if (pi.Price != null)
                     labels.Add(new OverlayLabel { Bounds = pi.Bounds, Text = Fmt(pi.TotalDiv), Color = ValueColor(pi.TotalDiv) });
             double sum = items.Sum(i => i.TotalDiv), grand = results.Values.Sum(r => ResultStore.Total(r, table));
-            string header = string.Format("{0}: {1}  ·  scanned {2:HH:mm}  ·  Stash total: {3}  ·  {4}: rescan · {5}: hide",
-                                          TabName(currentTab), Fmt(sum), tr.ScannedAt, Fmt(grand), ScanKeyName, OverlayKeyName);
-            overlay.ShowLabels(labels, header, stashRegion, PriceChangeNote(tr, sum));
+            string header = hoverHere
+                ? string.Format("{0}: {1}  ·  Stash total: {2}  ·  rest the mouse on an item to price it  ·  {3}: hide",
+                                TabName(currentTab), Fmt(sum), Fmt(grand), OverlayKeyName)
+                : string.Format("{0}: {1}  ·  scanned {2:HH:mm}  ·  Stash total: {3}  ·  {4}: rescan · {5}: hide",
+                                TabName(currentTab), Fmt(sum), tr.ScannedAt, Fmt(grand), ScanKeyName, OverlayKeyName);
+            overlay.ShowLabels(labels, header, stashRegion, hoverHere ? null : PriceChangeNote(tr, sum));
         }
 
         /// <summary>
@@ -696,6 +735,280 @@ namespace PoeStashPricer
             if (Math.Abs(change) < 0.01) return null;
             return string.Format("↻ Prices updated at {0:HH:mm}: tab value {1} → {2} ({3}{4:0.#}%)  ·  {5}: rescan",
                                  t.LoadedAt, Fmt(tr.ValueAtScan), Fmt(now), change > 0 ? "+" : "−", Math.Abs(change) * 100, ScanKeyName);
+        }
+
+        // ---------------------------------------------------------------- price on hover
+
+        // Instead of the app hovering every slot, the user moves the mouse: when it rests on a slot, that one item
+        // is copied (Ctrl+C, as the scan does) and priced. The tab must be "ready" first, its slots known: a tab
+        // the app knows is made ready when it is opened, any other one with the scan key.
+
+        const int RestMs = 150;        // the mouse stays this long on a slot before its item is read
+        const int HoverCopyWait = 300; // the game's answer to Ctrl+C; nothing by then = an empty slot
+
+        class HoverFrame
+        {
+            public string Key;             // result key: the tab's key, or UnknownTab (not recognised, or paged)
+            public string TabKey;          // the recognised tab, or null
+            public Rectangle Region;       // the stash area on screen
+            public List<Rectangle> Slots;  // on screen; null = not a known tab, every cell counts
+            public bool Exact;             // Slots are a built-in layout: every slot is in the list
+            public bool Fixed;             // one slot per item type
+            public double CellSize;
+            public double[] FrameColor;
+            public PixelBuffer Snapshot;   // the stash as it looked when made ready (or last checked)
+        }
+
+        string ScanButtonText()
+        {
+            return (settings.HoverPrices ? "Get tab ready  (" : "Scan  (") + ScanKeyName + ")";
+        }
+
+        /// <summary>The ready tab is still the one on screen (same place, same tab or at least the same frame colour).</summary>
+        bool FrameOnScreen(TabProfile tab, StashLocator.Result loc)
+        {
+            if (!settings.HoverPrices || frame == null || !stashVisible || frame.Region != stashRegion) return false;
+            if (tab != null) return frame.TabKey == tab.Key;
+            return frame.TabKey == null && frame.FrameColor != null && loc.FrameColor != null
+                   && StashLocator.ColorDistance(frame.FrameColor, loc.FrameColor) <= 0.15;
+        }
+
+        /// <summary>Makes the tab in <paramref name="full"/> (a capture of <paramref name="win"/>) ready for hover prices.</summary>
+        void Arm(IntPtr game, Rectangle win, PixelBuffer full, StashLocator.Result loc, TabProfile tab)
+        {
+            Rectangle region = new Rectangle(win.X + loc.Region.X, win.Y + loc.Region.Y, loc.Region.Width, loc.Region.Height);
+            PixelBuffer pb = full.Crop(loc.Region);
+            string key = tab != null && !tab.Paged ? tab.Key : UnknownTab;
+            bool sameUnknown = frame != null && frame.Key == UnknownTab && key == UnknownTab && frame.Region == region
+                               && frame.TabKey == (tab != null ? tab.Key : null);
+            HoverFrame f = new HoverFrame
+            {
+                Key = key, TabKey = tab != null ? tab.Key : null, Region = region, CellSize = Grid.CellSizeFor(region.Width),
+                FrameColor = loc.FrameColor, Snapshot = pb, Exact = tab != null && tab.BuiltIn, Fixed = tab != null && !tab.Paged
+            };
+            if (tab != null) f.Slots = tab.SlotsIn(region.Size).Select(s => { s.Offset(region.Location); return s; }).ToList();
+            frame = f;
+            lastSlot = Rectangle.Empty;
+            if (key == UnknownTab && !sameUnknown) unknownResult = null;   // another unsaved tab or page: start afresh
+            Log.Write(string.Format("hover prices: tab ready: {0} ({1})", tab != null ? tab.Key : "not recognised",
+                                    f.Slots != null ? f.Slots.Count + " slots" : "every cell"));
+            NoteStash(game, region, pb, key);
+            RefreshAll();
+        }
+
+        /// <summary>The scan key with price on hover on: make the tab on screen ready, whatever it is. The mouse isn't moved.</summary>
+        async void ArmFromGame(bool fromHotkey)
+        {
+            IntPtr game = await GetGame(fromHotkey);
+            if (game == IntPtr.Zero)
+            {
+                if (fromHotkey) Problem(ScanKeyName + ": the active window is not Path of Exile 2. Press it while in the game.", null);
+                else MessageBox.Show(this, NoGame, Text);
+                return;
+            }
+            Log.Write("scan key " + ScanKeyName + " pressed (price on hover) | foreground: " + Native.ForegroundDescription());
+            Rectangle win = Native.ClientRectOnScreen(game);
+            PixelBuffer full;
+            using (Bitmap bmp = Grid.Capture(win)) full = new PixelBuffer(bmp);
+            StashLocator.Result loc = StashLocator.Locate(full);
+            double d;
+            TabProfile tab = TabLibrary.Identify(full.Crop(loc.Region), loc.StashVisible ? loc.FrameColor : null, profiles.Values, out d);
+            if (!loc.StashVisible && tab != null && d <= 0.15) loc.EdgesFound = 4;   // a known tab whose frame was faint
+            if (!loc.StashVisible) { Problem(NoStash, BuildConfig(game)); return; }
+            Arm(game, win, full, loc, tab);
+            SetStatus(string.Format("{0} is ready: rest the mouse on an item to price it.", TabName(frame.Key)));
+        }
+
+        async void HoverTick(object sender, EventArgs e)
+        {
+            if (!settings.HoverPrices || frame == null || busy || copying) return;
+            if (!stashVisible || !Native.IsGameWindow(Native.GetForegroundWindow())) { lastSlot = Rectangle.Empty; return; }
+            try
+            {
+                // A click can move or take items, or show another page: look at the slots again once it's done.
+                if (Native.IsKeyDown(0x01) || Native.IsKeyDown(0x02)) { clickHeld = true; restSince = DateTime.MaxValue; return; }
+                if (clickHeld) { clickHeld = false; recheckAt = DateTime.Now.AddMilliseconds(350); }
+                if (DateTime.Now >= recheckAt) { recheckAt = DateTime.MaxValue; RecheckFrame(); }
+                if (recheckAt != DateTime.MaxValue || frame == null) return;   // until then, which tab is on screen is not sure
+
+                Point p = Cursor.Position;
+                if (!frame.Region.Contains(p)) { lastSlot = Rectangle.Empty; return; }
+                if (restSince == DateTime.MaxValue || Math.Abs(p.X - restPos.X) > 3 || Math.Abs(p.Y - restPos.Y) > 3)
+                {
+                    restPos = p;
+                    restSince = DateTime.Now;
+                    return;
+                }
+                if ((DateTime.Now - restSince).TotalMilliseconds < RestMs) return;
+                Rectangle slot = SlotAt(p);
+                if (slot.IsEmpty || slot == lastSlot) return;
+                // Keys the user holds would turn our Ctrl+C into something else.
+                if (Native.IsKeyDown(Native.VK_CONTROL) || Native.IsKeyDown(0x10) || Native.IsKeyDown(0x12)) return;
+
+                lastSlot = slot;
+                HoverFrame f = frame;
+                string txt;
+                copying = true;
+                try { txt = await RunSta(() => Scanner.CopyItemUnderCursor(HoverCopyWait)); }
+                finally { copying = false; }
+                if (f == frame) ApplyHover(f, slot, txt);
+            }
+            catch (Exception ex) { Log.Write("hover prices: " + ex.Message); }
+        }
+
+        /// <summary>The slot under a screen point: a slot of the tab, or for a tab without a layout the stash cell there.</summary>
+        Rectangle SlotAt(Point p)
+        {
+            HoverFrame f = frame;
+            if (f.Slots != null)
+            {
+                foreach (Rectangle s in f.Slots) if (s.Contains(p)) return s;
+                if (f.Exact) return Rectangle.Empty;   // a built-in layout has every slot: this is the panel between them
+            }
+            double cs = f.CellSize;
+            int c = (int)((p.X - f.Region.X) / cs), r = (int)((p.Y - f.Region.Y) / cs);
+            if (c < 0 || r < 0 || c >= 12 || r >= 12) return Rectangle.Empty;
+            return new Rectangle(f.Region.X + (int)Math.Round(c * cs), f.Region.Y + (int)Math.Round(r * cs), (int)Math.Round(cs), (int)Math.Round(cs));
+        }
+
+        static Rectangle OnScreen(SavedItem s, Rectangle region)
+        {
+            return new Rectangle(region.X + (int)Math.Round(s.X * region.Width), region.Y + (int)Math.Round(s.Y * region.Height),
+                                 (int)Math.Round(s.W * region.Width), (int)Math.Round(s.H * region.Height));
+        }
+
+        /// <summary>Puts what was copied from a slot into the tab's result, replacing what was there before.</summary>
+        void ApplyHover(HoverFrame f, Rectangle slot, string txt)
+        {
+            ParsedItem it = txt != null ? ItemParser.Parse(txt) : null;
+            TabResult tr = ResultFor(f.Key);
+            if (tr == null)
+            {
+                if (it == null) return;
+                tr = new TabResult { Key = f.Key };
+                if (f.Key == UnknownTab) unknownResult = tr;
+                else results[f.Key] = tr;
+            }
+            Rectangle region = f.Region;
+            Point mid = new Point(slot.X + slot.Width / 2, slot.Y + slot.Height / 2);
+            // Whatever was read here before goes: the item may have been moved, used or replaced.
+            int removed = tr.Items.RemoveAll(s =>
+            {
+                Rectangle b = OnScreen(s, region);
+                return b.Contains(mid) || slot.Contains(new Point(b.X + b.Width / 2, b.Y + b.Height / 2));
+            });
+            if (it == null && removed == 0) return;
+
+            if (it != null)
+            {
+                SavedItem si = new SavedItem
+                {
+                    Text = txt,
+                    X = (slot.X - region.X) / (double)region.Width, Y = (slot.Y - region.Y) / (double)region.Height,
+                    W = slot.Width / (double)region.Width, H = slot.Height / (double)region.Height
+                };
+                // A big item (armour, a unique) answers on every cell it covers: hovering another of its cells
+                // grows it instead of adding it twice.
+                SavedItem same = !f.Fixed && it.IsMultiCellCandidate
+                    ? tr.Items.FirstOrDefault(s => s.Text == txt && OnScreen(s, region).IntersectsWith(Rectangle.Inflate(slot, (int)(f.CellSize * 2.5), (int)(f.CellSize * 2.5))))
+                    : null;
+                if (same != null)
+                {
+                    Rectangle u = Rectangle.Union(OnScreen(same, region), slot);
+                    same.X = (u.X - region.X) / (double)region.Width; same.Y = (u.Y - region.Y) / (double)region.Height;
+                    same.W = u.Width / (double)region.Width; same.H = u.Height / (double)region.Height;
+                }
+                else
+                {
+                    if (it.NeedsCount)
+                    {
+                        // No stack size in the text: read the number on the icon, as a scan does.
+                        Rectangle local = slot;
+                        local.Offset(-region.X, -region.Y);
+                        int n = DigitReader.Read(f.Snapshot, local, f.CellSize);
+                        if (n > 0) si.Count = n; else si.CountUnread = true;
+                    }
+                    tr.Items.Add(si);
+                }
+            }
+
+            PriceTable t = table;
+            tr.ScannedAt = DateTime.Now;
+            tr.ValueAtScan = ResultStore.Total(tr, t);
+            tr.PricesAtScan = t != null ? t.LoadedAt : DateTime.MinValue;
+            if (f.Key != UnknownTab) ResultStore.Save(results);
+            PriceInfo price = it != null && t != null ? t.Lookup(it) : null;
+            Log.Write(it == null ? "hover prices: " + TabName(f.Key) + ": slot now empty"
+                                 : string.Format("hover prices: {0}: {1} x{2} = {3}", TabName(f.Key), it.DisplayName, it.Stack,
+                                                 price != null ? Fmt(price.Div * it.Stack) : "no price"));
+            RefreshAll();
+        }
+
+        /// <summary>
+        /// After a click. Another tab opened: that one is made ready (the prices of the one before stay, its items
+        /// are still in the stash). The same tab: items whose slot looks different now were moved, taken or are on
+        /// another page; their prices go until they are hovered again.
+        /// </summary>
+        void RecheckFrame()
+        {
+            HoverFrame f = frame;
+            if (f == null) return;
+            Rectangle win = Native.ClientRectOnScreen(gameHwnd);
+            if (win.Width <= 0 || win.Height <= 0) return;
+            PixelBuffer full;
+            using (Bitmap bmp = Grid.Capture(win)) full = new PixelBuffer(bmp);
+            StashLocator.Result loc = StashLocator.Locate(full);
+            double d;
+            TabProfile tab = TabLibrary.Identify(full.Crop(loc.Region), loc.StashVisible ? loc.FrameColor : null, profiles.Values, out d);
+            if (!loc.StashVisible && tab != null && d <= 0.15) loc.EdgesFound = 4;
+            if (!loc.StashVisible) { recheckTries = 0; return; }   // stash closed: the watcher takes it from here
+            if (tab != null && tab.Key != f.TabKey)
+            {
+                recheckTries = 0;
+                Arm(gameHwnd, win, full, loc, tab);
+                return;
+            }
+            if (tab == null && f.TabKey != null)
+            {
+                // Not recognised: an item tooltip may hide part of the tab (or it is still fading in). Only another
+                // frame colour says for sure that another tab is open; otherwise it's still this one, and its
+                // slots can't be compared with a tooltip over them, so the prices stay.
+                bool otherColour = loc.FrameColor != null && f.FrameColor != null && StashLocator.ColorDistance(loc.FrameColor, f.FrameColor) > 0.15;
+                if (!otherColour)
+                {
+                    if (++recheckTries < 4) recheckAt = DateTime.Now.AddMilliseconds(300);
+                    else recheckTries = 0;
+                    return;
+                }
+                recheckTries = 0;
+                frame = null;
+                currentTab = null;
+                Log.Write("hover prices: the tab on screen is not one the app knows; " + ScanKeyName + " gets it ready");
+                SetStatus("This tab isn't one the app knows: press " + ScanKeyName + " to get it ready for hover prices.");
+                UpdateOverlay(true);
+                return;
+            }
+            recheckTries = 0;
+            Rectangle local = f.Region;
+            local.Offset(-win.X, -win.Y);
+            PixelBuffer now = full.Crop(local);
+            TabResult tr = ResultFor(f.Key);
+            int dropped = 0;
+            if (tr != null)
+                dropped = tr.Items.RemoveAll(s =>
+                {
+                    Rectangle b = OnScreen(s, f.Region);
+                    b.Offset(-f.Region.X, -f.Region.Y);
+                    return Scanner.MeanDifference(f.Snapshot, now, b) > 20;
+                });
+            f.Snapshot = now;
+            lastSlot = Rectangle.Empty;   // the slot under the mouse may have changed too
+            if (dropped == 0) return;
+            Log.Write("hover prices: " + dropped + " items changed after a click, their prices were removed");
+            tr.ScannedAt = DateTime.Now;
+            tr.ValueAtScan = ResultStore.Total(tr, table);
+            if (f.Key != UnknownTab) ResultStore.Save(results);
+            RefreshAll();
         }
 
         // ---------------------------------------------------------------- prices
@@ -1105,6 +1418,7 @@ namespace PoeStashPricer
                 if (scanner != null) scanner.CancelRequested = true;
                 return;
             }
+            if (settings.HoverPrices) { ArmFromGame(fromHotkey); return; }
             PriceTable t = table;
             if (t == null) { SetStatus("Prices are not loaded yet, please wait a moment."); return; }
             IntPtr game = await GetGame(fromHotkey);
@@ -1198,7 +1512,7 @@ namespace PoeStashPricer
             {
                 busy = false;
                 scanner = null;
-                btnScan.Text = "Scan  (" + ScanKeyName + ")";
+                btnScan.Text = ScanButtonText();
             }
         }
 

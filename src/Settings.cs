@@ -14,6 +14,7 @@ namespace PoeStashPricer
         public int OverlayKey { get; set; }           // default F8
         public int HoverDelay { get; set; }
         public int CopyTimeout { get; set; }
+        public bool HoverPrices { get; set; }         // price the item the mouse rests on instead of scanning the whole tab
 
         public AppSettings()
         {

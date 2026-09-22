@@ -5,6 +5,7 @@ A small Windows app that scans the special stash tabs of Path of Exile 2 (Curren
 ## Features
 
 - **One key to price a tab.** Open a stash tab and press F7. The app hovers every item, reads it the way you would (Ctrl+C in the game) and writes each stack's value over it: unit price × quantity, in Divine, Exalted or Chaos.
+- **Or price as you hover.** With **Price on hover** on, the app never moves the mouse: rest it on an item and its price shows over it. Tabs the app knows are ready as soon as you open them; any other tab takes one press of F7.
 - **Total stash value.** Every scanned tab keeps its last result, so the app always shows what each tab and your whole stash are worth, and updates the numbers when prices move.
 - **Finds the stash on its own.** No grid to draw and nothing to calibrate: the stash panel is found in a screenshot of the game, at any resolution (tested from 1280×720 to 3840×2160).
 - **Knows the special tabs.** The app comes with a map of every slot of the Currency, Fragments, Expedition, Breach, Abyss, Essence, Delirium, Ritual and all five Runes tabs, so it recognises them whenever you open them (even the look-alike Runes sub-tabs) and reads every slot from the very first scan. A special tab it has no map for is learned on its first scan instead.
@@ -68,6 +69,16 @@ Everyone starts from a clean setup: the download contains only the exe, this REA
 **Tabs are learned automatically.** The first scan of a special tab saves it: where its slots are, how it looks, and a name guessed from its items (Currency, Essence, Runes...). From then on the tab is recognised, its value counts in the total stash value, and its prices come back when you return to it. If a name is wrong, pick the tab in the list and click **Rename**.
 
 Which tabs are learned, and what happens with the others, is listed in [Supported tabs](#supported-tabs).
+
+### Price on hover
+
+Tick **Price on hover** if you'd rather move the mouse yourself. F7 then no longer scans; the app only reads the item your mouse rests on:
+
+1. Open a stash tab. A tab the app knows (see [Supported tabs](#supported-tabs)) is ready right away; for any other tab press **F7** once.
+2. Rest the mouse on an item for a moment. The app presses Ctrl+C once, puts your clipboard back, and the price shows over the item. The tab's value and the total update as you go.
+3. Take, move or split items, or switch pages, and their old prices are removed until you hover them again. Hovering an empty slot removes its old price too.
+
+Nothing is copied while you hold Ctrl, Shift, Alt or a mouse button.
 
 **Delete** removes a saved tab and its last scan; its next scan learns it again. **Delete all** removes all saved tabs, scan results and learned digits, so the app starts over as if freshly installed (league and currency choices are kept).
 
