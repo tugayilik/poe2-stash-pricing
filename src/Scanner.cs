@@ -272,6 +272,10 @@ namespace PoeStashPricer
                             // slot copies nothing, so hovering it costs only a moment.
                             g.Likely[0, 0] = Occupied(pb, k, cfg);
                             g.Active[0, 0] = true;
+                            // A paged tab's grid (built-in, not fixed-slot) has no placeholder icons: an empty cell
+                            // is plain black, so only the lit ones are hovered (0.00 empty, 0.42+ filled, measured
+                            // at 720p to 1440p).
+                            if (exact && !cfg.FixedLayout) g.Likely[0, 0] = g.Active[0, 0] = BrightShare(pb, k) >= 0.1;
                             g.Priority = -1;
                             groups.Add(g);
                         }
@@ -335,6 +339,25 @@ namespace PoeStashPricer
                         if (g.Priority != -1) g.Likely[r, c] = g.Active[r, c];   // found by looking, so it looked occupied
                     }
             return groups;
+        }
+
+        /// <summary>
+        /// Share of clearly lit pixels in the middle of a cell. An empty cell of a paged tab (Tablets...) is
+        /// nearly black with a faint pattern; any item in it, whatever its colour, lights a good part of it.
+        /// </summary>
+        public static double BrightShare(PixelBuffer pb, Rectangle cell)
+        {
+            Rectangle r = Rectangle.Inflate(cell, -cell.Width / 6, -cell.Height / 6);
+            r.Intersect(new Rectangle(0, 0, pb.Width, pb.Height));
+            int lit = 0, all = 0;
+            for (int y = r.Top; y < r.Bottom; y++)
+                for (int x = r.Left; x < r.Right; x++)
+                {
+                    int i = y * pb.Stride + x * 4;
+                    if (Math.Max(pb.Px[i], Math.Max(pb.Px[i + 1], pb.Px[i + 2])) >= 60) lit++;
+                    all++;
+                }
+            return all == 0 ? 0 : (double)lit / all;
         }
 
         /// <summary>
