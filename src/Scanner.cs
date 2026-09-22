@@ -526,7 +526,7 @@ namespace PoeStashPricer
             return n > 0 && bright < n / 100;
         }
 
-        static double MeanDifference(PixelBuffer a, PixelBuffer b, Rectangle area)
+        public static double MeanDifference(PixelBuffer a, PixelBuffer b, Rectangle area)
         {
             area.Intersect(new Rectangle(0, 0, Math.Min(a.Width, b.Width), Math.Min(a.Height, b.Height)));
             long sum = 0; int n = 0;
@@ -594,7 +594,18 @@ namespace PoeStashPricer
 
         string CopyHovered() { return CopyHovered(EmptySlotTimeout()); }
 
-        string CopyHovered(int timeout)
+        /// <summary>
+        /// Copies the item the user's own mouse rests on (hover pricing): one Ctrl+C, the user's clipboard put back
+        /// afterwards. Null when nothing was copied (an empty slot).
+        /// </summary>
+        public static string CopyItemUnderCursor(int timeout)
+        {
+            string saved = ReadClipboard();
+            try { return CopyHovered(timeout); }
+            finally { if (saved != null) RestoreClipboard(saved); }
+        }
+
+        static string CopyHovered(int timeout)
         {
             uint seq = Native.GetClipboardSequenceNumber();
             Native.SendCtrlC();
