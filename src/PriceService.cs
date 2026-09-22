@@ -101,7 +101,7 @@ namespace PoeStashPricer
     public static class PriceService
     {
         const string Base = "https://poe.ninja/poe2/api/economy/";
-        const string UserAgent = "PoeStashPricer/1.4.0 (desktop stash pricing tool)";
+        const string UserAgent = "PoeStashPricer/1.4.1 (desktop stash pricing tool)";
 
         static readonly string[] ExchangeTypes =
         {
