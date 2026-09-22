@@ -446,7 +446,7 @@ namespace PoeStashPricer
 
         // ---------------------------------------------------------------- lifecycle / hotkeys
 
-        public const string Version = "1.4.0";
+        public const string Version = "1.4.1";
         readonly List<string> hotkeyProblems = new List<string>();
 
         protected override void OnHandleCreated(EventArgs e)
