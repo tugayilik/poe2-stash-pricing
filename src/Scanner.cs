@@ -220,8 +220,10 @@ namespace PoeStashPricer
         /// <summary>
         /// Decides where to hover. <paramref name="pb"/> is a capture of <c>cfg.Region</c>;
         /// <paramref name="known"/> are the slots of the recognised tab (area coordinates), or null.
+        /// <paramref name="exact"/>: they are a built-in layout, measured slot by slot, so every slot of the tab
+        /// is in the list and nothing else is hovered.
         /// </summary>
-        public static List<ProbeGroup> Plan(PixelBuffer pb, ScanConfig cfg, List<Rectangle> known)
+        public static List<ProbeGroup> Plan(PixelBuffer pb, ScanConfig cfg, List<Rectangle> known, bool exact = false)
         {
             List<ProbeGroup> groups = new List<ProbeGroup>();
             Point origin = cfg.Region.Location;
@@ -244,7 +246,8 @@ namespace PoeStashPricer
             if (known != null)
                 foreach (Rectangle slot in known)
                 {
-                    int kx = Math.Max(1, (int)Math.Round(slot.Width / cs)), ky = Math.Max(1, (int)Math.Round(slot.Height / cs));
+                    // A measured big slot holds one item: hovered once, in its middle.
+                    int kx = exact ? 1 : Math.Max(1, (int)Math.Round(slot.Width / cs)), ky = exact ? 1 : Math.Max(1, (int)Math.Round(slot.Height / cs));
                     for (int r = 0; r < ky; r++)
                         for (int c = 0; c < kx; c++)
                         {
@@ -254,6 +257,7 @@ namespace PoeStashPricer
                             // that area's middle instead of the saved one, which may be on the edge.
                             Rectangle snap = Rectangle.Empty;
                             double best = 0;
+                            if (!exact)
                             foreach (Rectangle b in single)
                             {
                                 Rectangle x = Rectangle.Intersect(b, k);
@@ -272,6 +276,7 @@ namespace PoeStashPricer
                             groups.Add(g);
                         }
                 }
+            if (known != null && exact) return groups;
 
             // Fixed-slot tabs place slots in regular rows and columns. The cleanly detected single items
             // reveal those lines; testing every row x column crossing catches items whose own area was
@@ -457,8 +462,9 @@ namespace PoeStashPricer
                                            + (plan.Candidate != null ? ", looks like " + plan.Candidate.Key + ": checked by its items after the scan" : ""));
             Size area = new Size(plan.Snapshot.Width, plan.Snapshot.Height);
             cfg.CellSize = Grid.CellSizeFor(area.Width);
-            cfg.FixedLayout = plan.Tab != null;
-            plan.Groups = Grid.Plan(plan.Snapshot, cfg, plan.Tab != null ? plan.Tab.SlotsIn(area) : null);
+            // One slot per item type, except in a paged tab (Tablets...): its cells hold many stacks of one item.
+            cfg.FixedLayout = plan.Tab != null && !plan.Tab.Paged;
+            plan.Groups = Grid.Plan(plan.Snapshot, cfg, plan.Tab != null ? plan.Tab.SlotsIn(area) : null, plan.Tab != null && plan.Tab.BuiltIn);
             return plan;
         }
 

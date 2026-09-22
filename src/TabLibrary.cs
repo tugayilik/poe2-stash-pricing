@@ -23,6 +23,9 @@ namespace PoeStashPricer
         public List<double> Signature { get; set; }   // coarse greyscale picture of the stash area
         public List<double> ItemMask { get; set; }    // 1 where a signature cell showed items (ignored when comparing)
         public double[] FrameColor { get; set; }      // colour of the tab's frame, or null
+        public bool Paged { get; set; }               // shows one of several pages at a time: not saved, not in the total
+        [System.Web.Script.Serialization.ScriptIgnore]
+        public bool BuiltIn { get; set; }             // a layout shipped with the app (Layouts.json), not learned
 
         public TabProfile() { Slots = new List<double[]>(); Signature = new List<double>(); }
 
@@ -78,7 +81,15 @@ namespace PoeStashPricer
             return key;
         }
 
+        /// <summary>The built-in layouts and the tabs learned on this PC.</summary>
         public static Dictionary<string, TabProfile> LoadAll()
+        {
+            Dictionary<string, TabProfile> res = LoadLearned();
+            foreach (TabProfile p in BuiltInLayouts()) res[p.Key] = p;
+            return res;
+        }
+
+        static Dictionary<string, TabProfile> LoadLearned()
         {
             Dictionary<string, TabProfile> res = new Dictionary<string, TabProfile>();
             if (!Directory.Exists(Dir)) return res;
@@ -319,11 +330,21 @@ namespace PoeStashPricer
         /// </summary>
         public static TabProfile Identify(PixelBuffer pb, double[] frameColor, IEnumerable<TabProfile> profiles, out double difference)
         {
-            TabProfile best = Closest(pb, frameColor, profiles, out difference);
-            // Only a clear match. A merely similar picture is not enough: the Runes sub-tabs look alike
-            // (0.10 to 0.27 apart), and Kalguuran Runes even hold the same kind of items as Runes.
+            // The built-in layouts first. They were taken on another PC with other items, so they get a looser
+            // limit, but must also be clearly closer than the next built-in: measured 0.00-0.09 for the same tab
+            // (other items, 1080p), while the closest look-alikes are 0.10 (Runes / Kalguuran Runes) and 0.16
+            // (Trials / Wombgifts) apart.
+            double second;
+            TabProfile layout = Closest(pb, null, profiles.Where(p => p.BuiltIn), out difference, out second);
+            if (layout != null && difference <= BuiltInMatch && second - difference >= BuiltInMargin) return layout;
+
+            // Tabs learned on this PC. Only a clear match: a merely similar picture is not enough, the Runes
+            // sub-tabs look alike (0.10 to 0.27 apart) and Kalguuran Runes even hold the same kind of items.
+            TabProfile best = Closest(pb, frameColor, profiles.Where(p => !p.BuiltIn), out difference, out second);
             return difference <= SureMatch ? best : null;
         }
+
+        const double BuiltInMatch = 0.15, BuiltInMargin = 0.05;
 
         /// <summary>
         /// The saved tab that looks similar but not the same (after many items changed, say). Whether it is
@@ -331,7 +352,9 @@ namespace PoeStashPricer
         /// </summary>
         public static TabProfile Candidate(PixelBuffer pb, double[] frameColor, IEnumerable<TabProfile> profiles, out double difference)
         {
-            TabProfile best = Closest(pb, frameColor, profiles, out difference);
+            // Learned tabs only: a candidate's picture gets updated, and built-in layouts never change.
+            double second;
+            TabProfile best = Closest(pb, frameColor, profiles.Where(p => !p.BuiltIn), out difference, out second);
             return difference > SureMatch && difference <= MaxDifferent ? best : null;
         }
 
@@ -344,27 +367,59 @@ namespace PoeStashPricer
             p.Saved = DateTime.Now;
         }
 
-        static TabProfile Closest(PixelBuffer pb, double[] frameColor, IEnumerable<TabProfile> profiles, out double difference)
+        static TabProfile Closest(PixelBuffer pb, double[] frameColor, IEnumerable<TabProfile> profiles, out double difference, out double second)
         {
             List<double> sig = Signature(pb), mask = ItemMask(pb);
             TabProfile best = null;
             difference = 1;
+            second = 1;
             foreach (TabProfile p in profiles)
             {
-                if (p.Signature == null || p.Signature.Count != sig.Count) continue;
                 if (frameColor != null && p.FrameColor != null && StashLocator.ColorDistance(frameColor, p.FrameColor) > MaxFrameHue) continue;
-                bool hasMask = p.ItemMask != null && p.ItemMask.Count == sig.Count;
-                List<int> cells = new List<int>();
-                for (int i = 0; i < sig.Count; i++)
-                    if (mask[i] == 0 && !(hasMask && p.ItemMask[i] > 0)) cells.Add(i);
-                if (cells.Count < sig.Count / 5) continue;   // almost everything covered by items: can't tell
-
-                // Correlation of the item-free cells: follows the panel's pattern of light and dark, and is
-                // unaffected by the game fading a tab in (darker or washed-out picture). 0 = identical.
-                double d = 1 - Correlation(sig, p.Signature, cells);
-                if (d < difference) { difference = d; best = p; }
+                double d = Distance(sig, mask, p.Signature, p.ItemMask);
+                if (d < difference) { second = difference; difference = d; best = p; }
+                else if (d < second) second = d;
             }
             return best;
+        }
+
+        /// <summary>
+        /// How different two tab pictures are (0 = identical, 1 = unrelated), from their signatures, leaving out
+        /// the cells either one shows items in. Correlation follows the panel's pattern of light and dark and is
+        /// unaffected by the game fading a tab in (a darker or washed-out picture).
+        /// </summary>
+        public static double Distance(List<double> sigA, List<double> maskA, List<double> sigB, List<double> maskB)
+        {
+            if (sigA == null || sigB == null || sigA.Count != sigB.Count) return 1;
+            bool hasA = maskA != null && maskA.Count == sigA.Count, hasB = maskB != null && maskB.Count == sigB.Count;
+            List<int> cells = new List<int>();
+            for (int i = 0; i < sigA.Count; i++)
+                if (!(hasA && maskA[i] > 0) && !(hasB && maskB[i] > 0)) cells.Add(i);
+            if (cells.Count < sigA.Count / 5) return 1;   // almost everything covered by items: can't tell
+            return 1 - Correlation(sigA, sigB, cells);
+        }
+
+        /// <summary>The layouts that ship with the app (src/Layouts.json, built by tools/make-layouts.ps1).</summary>
+        public static List<TabProfile> BuiltInLayouts()
+        {
+            List<TabProfile> res = new List<TabProfile>();
+            try
+            {
+                using (Stream s = typeof(TabLibrary).Assembly.GetManifestResourceStream("PoeStashPricer.Layouts.json"))
+                {
+                    if (s == null) return res;
+                    using (StreamReader r = new StreamReader(s))
+                        res = new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Deserialize<List<TabProfile>>(r.ReadToEnd());
+                }
+                foreach (TabProfile p in res)
+                {
+                    p.Key = "layout-" + p.Key;   // learned keys are letters and digits only, so these never clash
+                    p.BuiltIn = true;
+                    names[p.Key] = p.Name;
+                }
+            }
+            catch (Exception ex) { Log.Write("built-in layouts not loaded: " + ex.Message); }
+            return res;
         }
 
         static double Correlation(List<double> a, List<double> b, List<int> cells)

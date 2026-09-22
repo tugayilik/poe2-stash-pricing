@@ -1,0 +1,20 @@
+name Fragments
+kind Fragments
+# Mostly empty grey-framed slots the finder misses: measured from the screenshot instead.
+clear
+grid 304 142 3 1 81 0 74 74      # top row
+add 90 260 74 74
+add 180 260 74 74
+add 385 260 74 74
+add 100 350 146 146              # 2x2 slots
+add 349 349 146 146
+add 600 188 146 146
+add 600 350 146 146
+add 54 556 74 74
+add 142 556 146 74               # 2x1 slot
+add 304 556 74 74
+add 420 556 74 74
+add 510 556 74 74
+add 600 556 74 74
+add 718 556 74 74
+grid 304 690 3 1 81 0 74 74      # bottom row

@@ -1,0 +1,25 @@
+name Ritual
+kind Ritual
+# Omen slots in loose rows; the finder split, merged and stretched several of them. All measured.
+clear
+add 250 33 76 76                  # top: two slots and a 2x1 one between them
+add 349 33 147 76
+add 518 33 76 76
+add 250 167 76 76
+add 444 167 76 76
+add 525 167 76 76
+grid 126 287 3 1 80.5 0 75 75
+grid 403 287 3 1 81 0 75 75
+add 164 367 75 75
+add 245 367 75 75
+grid 403 367 4 1 81.3 0 75 75
+add 146 484 75 75
+add 227 484 75 75
+add 344 484 75 75
+add 425 484 75 75
+add 545 484 75 75
+add 623 484 75 75
+add 146 601 76 76
+add 227 601 76 76
+grid 126 735 3 1 81 0 75 75
+grid 403 736 4 1 81.3 0 75 75

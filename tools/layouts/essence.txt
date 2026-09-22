@@ -1,0 +1,10 @@
+name Essence
+kind Essence
+# Two blocks of 4 columns (73.3 px apart) and a few slots in the middle, measured from the frames. The finder
+# also picked up boxes in the header and a strip along the bottom, so everything is given here.
+clear
+grid 36 22 4 10 73.3 81.5 70 70     # left block, 10 rows
+grid 516 22 4 9 73.3 81.5 70 70     # right block, 9 rows
+add 358 79 131 257                  # tall slot
+grid 353 349 2 2 72 81 68 68        # the four slots with a cross in the middle
+grid 353 592 2 3 70 81 70 70        # two columns at the bottom middle

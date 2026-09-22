@@ -1,0 +1,3 @@
+﻿name Expedition
+kind Expedition
+add 160 68 76 76                 # first slot of the top row (faint frame), 90 px left of the next
