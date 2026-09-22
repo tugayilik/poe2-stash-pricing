@@ -38,7 +38,7 @@ namespace PoeStashPricer
 
         ComboBox cbLeague, cbCurrency;
         NumericUpDown nudDelay;
-        Button btnRefresh, btnRename, btnDeleteTab, btnDeleteAll, btnPreview, btnScan, btnOverlay, btnScanKey, btnOverlayKey;
+        Button btnUpdate, btnRefresh, btnRename, btnDeleteTab, btnDeleteAll, btnPreview, btnScan, btnOverlay, btnScanKey, btnOverlayKey;
         Label lblGrand, lblGrandSub, lblView, lblStatus;
         DarkListView tabList, list;
         ThinProgress progress;
@@ -152,7 +152,7 @@ namespace PoeStashPricer
             total.Controls.AddRange(new Control[] { totalCaption, lblGrand, lblGrandSub });
             heroGrid.Controls.Add(total, 0, 0);
 
-            TableLayoutPanel prefs = new TableLayoutPanel { AutoSize = true, ColumnCount = 3, RowCount = 2, BackColor = Color.Transparent, Anchor = AnchorStyles.Right, Margin = new Padding(0) };
+            TableLayoutPanel prefs = new TableLayoutPanel { AutoSize = true, ColumnCount = 4, RowCount = 2, BackColor = Color.Transparent, Anchor = AnchorStyles.Right, Margin = new Padding(0) };
             cbLeague = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = S(200), Margin = new Padding(0, 0, S(8), 0) };
             Theme.Style(cbLeague);
             cbLeague.SelectedIndexChanged += delegate
@@ -183,6 +183,11 @@ namespace PoeStashPricer
             prefs.Controls.Add(cbLeague, 0, 1);
             prefs.Controls.Add(cbCurrency, 1, 1);
             prefs.Controls.Add(btnRefresh, 2, 1);
+            btnUpdate = Theme.Button("Update", delegate { InstallUpdate(); }, dpi, true);
+            btnUpdate.Margin = new Padding(S(8), 0, 0, 0);
+            btnUpdate.Padding = new Padding(S(10), 0, S(10), 0);
+            btnUpdate.Visible = false;   // shown when GitHub has a newer release
+            prefs.Controls.Add(btnUpdate, 3, 1);
             heroGrid.Controls.Add(prefs, 1, 0);
             hero.Controls.Add(heroGrid);
             root.Controls.Add(hero);
@@ -1022,8 +1027,73 @@ namespace PoeStashPricer
         int priceFailures, leagueFailures;
 
         /// <summary>Called by the watch timer: starts the fetches that are due.</summary>
+        // ---------------------------------------------------------------- updates
+
+        // GitHub is asked for the latest release at start and every 6 hours; nothing is downloaded until the
+        // user clicks the Update button.
+        DateTime nextUpdateCheck = DateTime.MinValue;
+        UpdateInfo update;
+        bool updating;
+
+        async void CheckForUpdate()
+        {
+            nextUpdateCheck = DateTime.Now.AddHours(6);
+            try
+            {
+                UpdateInfo u = await Task.Run(() => Updater.Check());
+                if (u == null || u.ZipUrl == null || u.SumsUrl == null) return;
+                if (update == null) Log.Write("update available: " + u.Tag);
+                update = u;
+                btnUpdate.Text = "Update to " + u.Tag;
+                btnUpdate.Visible = true;
+            }
+            catch (Exception ex)
+            {
+                nextUpdateCheck = DateTime.Now.AddHours(1);   // offline or GitHub unreachable: try again later
+                Log.Write("update check failed: " + ex.Message);
+            }
+        }
+
+        async void InstallUpdate()
+        {
+            UpdateInfo u = update;
+            if (u == null || updating) return;
+            if (busy) { SetStatus("Wait for the scan to finish, then update."); return; }
+            DialogResult answer = MessageBox.Show(this,
+                string.Format("Version {0} is available (you have {1}).\n\nDownload it from GitHub and restart the app now? Your tabs, scans and settings stay.\n\n" +
+                              "Yes: update now    No: open the release notes", u.Tag.Substring(1), Version),
+                Text, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Information);
+            if (answer == DialogResult.No) { try { System.Diagnostics.Process.Start(u.PageUrl); } catch { } return; }
+            if (answer != DialogResult.Yes) return;
+
+            updating = true;
+            btnUpdate.Enabled = false;
+            try
+            {
+                string exe = await Task.Run(() => Updater.Download(u, s => BeginInvoke((Action)(() => SetStatus(s)))));
+                Log.Write("update " + u.Tag + " downloaded and checked, restarting");
+                settings.Save();
+                Updater.Install(exe);
+                Close();
+            }
+            catch (Exception ex)
+            {
+                Log.Write("update failed: " + ex);
+                SetStatus("Update failed: " + ex.Message);
+                MessageBox.Show(this, "The update failed: " + ex.Message + "\n\nYou can download it from the release page instead.", Text,
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                try { System.Diagnostics.Process.Start(u.PageUrl); } catch { }
+            }
+            finally
+            {
+                updating = false;
+                btnUpdate.Enabled = true;
+            }
+        }
+
         void AutoRefreshPrices()
         {
+            if (DateTime.Now >= nextUpdateCheck) CheckForUpdate();
             if (loadingPrices || busy) return;
             DateTime now = DateTime.Now;
             if (now >= nextLeagueLoad) LoadLeagues();

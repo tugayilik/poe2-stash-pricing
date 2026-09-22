@@ -9,7 +9,7 @@ $exe = Join-Path $env:TEMP 'PoeLayoutTool.exe'
 $src = Get-ChildItem (Join-Path $root 'src') -Filter *.cs | ForEach-Object { $_.FullName }
 
 & $csc /nologo /codepage:65001 "/out:$exe" /main:PoeStashPricer.LayoutTool `
-    /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll /r:Microsoft.VisualBasic.dll `
+    /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll /r:Microsoft.VisualBasic.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll `
     (Join-Path $PSScriptRoot 'LayoutTool.cs') $src
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
