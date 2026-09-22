@@ -54,6 +54,7 @@ namespace PoeStashPricer
             ClientSize = new Size(S(960), S(660));
             MinimumSize = new Size(S(760), S(480));
             StartPosition = FormStartPosition.CenterScreen;
+            MoveLearnedTabsToLayouts();
             BuildUi();
             RefreshAll();
 
@@ -64,6 +65,35 @@ namespace PoeStashPricer
         }
 
         int S(int px) { return (int)Math.Round(px * dpi); }
+
+        /// <summary>
+        /// Tabs learned on this PC that a built-in layout covers now: their last scan moves over to the built-in
+        /// tab (the same panel, so item positions still fit) and the learned copy goes, so no tab is listed or
+        /// counted twice. The last scan of a paged tab is dropped: it only ever showed one page.
+        /// </summary>
+        void MoveLearnedTabsToLayouts()
+        {
+            List<TabProfile> layouts = profiles.Values.Where(p => p.BuiltIn).ToList();
+            bool moved = false;
+            foreach (TabProfile p in profiles.Values.Where(p => !p.BuiltIn).ToList())
+            {
+                var ranked = layouts.Select(l => new { l, d = TabLibrary.Distance(p.Signature, p.ItemMask, l.Signature, l.ItemMask) })
+                                    .OrderBy(x => x.d).ToList();
+                if (ranked.Count == 0 || ranked[0].d > 0.15 || (ranked.Count > 1 && ranked[1].d - ranked[0].d < 0.05)) continue;
+                TabProfile layout = ranked[0].l;
+                TabResult tr;
+                if (results.TryGetValue(p.Key, out tr))
+                {
+                    results.Remove(p.Key);
+                    if (!layout.Paged && !results.ContainsKey(layout.Key)) { tr.Key = layout.Key; results[layout.Key] = tr; }
+                }
+                TabLibrary.Delete(p.Key);
+                profiles.Remove(p.Key);
+                Log.Write(string.Format("learned tab '{0}' ({1}) is now the built-in '{2}' (difference {3:0.00})", p.Name, p.Key, layout.Name, ranked[0].d));
+                moved = true;
+            }
+            if (moved) ResultStore.Save(results);
+        }
 
         // ---------------------------------------------------------------- UI
 
@@ -285,7 +315,8 @@ namespace PoeStashPricer
             tabList.Items.Clear();
             // The tabs learned so far (each is learned on its first scan), plus an unsaved tab just scanned.
             // Results without a saved tab (left by older versions) are listed too: they count in the total.
-            List<string> keys = profiles.Keys.Union(results.Keys).OrderBy(k => TabName(k)).ToList();
+            // Built-in layouts are listed once they were scanned; learned tabs always.
+            List<string> keys = profiles.Values.Where(p => !p.BuiltIn).Select(p => p.Key).Union(results.Keys).OrderBy(k => TabName(k)).ToList();
             if (unknownResult != null) keys.Add(UnknownTab);
             foreach (string key in keys)
             {
@@ -609,7 +640,8 @@ namespace PoeStashPricer
                 watcher.SetBaseline(full.Crop(local), stashRegion, 12, 12);
             }
 
-            string key = stashVisible && tab != null ? tab.Key : null;
+            // A paged tab (Tablets...) shows one of several pages: like an unknown tab, its last scan is not kept.
+            string key = stashVisible && tab != null && !tab.Paged ? tab.Key : null;
             bool changed = key != currentTab;
             if (changed)
             {
@@ -971,6 +1003,7 @@ namespace PoeStashPricer
             string key = SelectedTabKey();
             TabProfile p;
             if (key == null || !profiles.TryGetValue(key, out p)) { SetStatus("Pick a tab in the list first."); return; }
+            if (p.BuiltIn) { SetStatus("'" + p.Name + "' is a built-in tab: its name comes with the app."); return; }
             string name = Microsoft.VisualBasic.Interaction.InputBox("New name for this tab:", Text, p.Name);
             if (string.IsNullOrWhiteSpace(name)) return;
             TabLibrary.Rename(p, name.Trim());
@@ -995,7 +1028,7 @@ namespace PoeStashPricer
             {
                 SetStatus("Could not delete everything: " + ex.Message);
             }
-            profiles.Clear();
+            profiles = TabLibrary.LoadAll();   // the built-in layouts stay
             results.Clear();
             unknownResult = null;
             currentTab = null;
@@ -1011,10 +1044,15 @@ namespace PoeStashPricer
         {
             string key = SelectedTabKey();
             if (key == null || (!profiles.ContainsKey(key) && !results.ContainsKey(key))) return;
-            if (MessageBox.Show(this, "'" + TabLibrary.NameOf(key) + "': delete the saved tab and its last scan?", Text, MessageBoxButtons.YesNo) != DialogResult.Yes) return;
-            TabLibrary.Delete(key);
+            bool builtIn = profiles.ContainsKey(key) && profiles[key].BuiltIn;
+            string question = builtIn ? "'" + TabLibrary.NameOf(key) + "': delete its last scan?" : "'" + TabLibrary.NameOf(key) + "': delete the saved tab and its last scan?";
+            if (MessageBox.Show(this, question, Text, MessageBoxButtons.YesNo) != DialogResult.Yes) return;
             Log.Write("tab deleted: " + key);
-            profiles.Remove(key);
+            if (!builtIn)   // a built-in layout stays; only its scan goes
+            {
+                TabLibrary.Delete(key);
+                profiles.Remove(key);
+            }
             if (results.Remove(key)) ResultStore.Save(results);
             if (currentTab == key) currentTab = null;
             RefreshAll();
@@ -1101,12 +1139,12 @@ namespace PoeStashPricer
                 if (res.StashNotFound) { Problem(NoStash, cfg); return; }
 
                 string learnedName = LearnIfNew(res, cfg);
-                string key = res.Tab != null ? res.Tab.Key : UnknownTab;
+                string key = res.Tab != null && !res.Tab.Paged ? res.Tab.Key : UnknownTab;
                 Log.Write(string.Format("scan done: tab {0}, {1} positions tried, {2} items read ({3} on a second try of {4}), {5} items, aborted={6}",
                                         key, res.CellsTried, res.CellsCopied, res.CellsRecovered, res.CellsRetried, res.Items.Count, res.Aborted));
                 if (res.Timing != null) Log.Write("  timing: " + res.Timing);
                 // Only when the tab was recognised for sure: slots of a look-alike tab must not get mixed in.
-                if (learnedName == null && res.Tab != null && !res.Aborted && res.TabDifference <= TabLibrary.SureMatch)
+                if (learnedName == null && res.Tab != null && !res.Tab.BuiltIn && !res.Aborted && res.TabDifference <= TabLibrary.SureMatch)
                 {
                     // Items in slots that were empty when the tab was learned: remember those slots too.
                     Rectangle region = cfg.Region;

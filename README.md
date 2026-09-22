@@ -7,7 +7,7 @@ A small Windows app that scans the special stash tabs of Path of Exile 2 (Curren
 - **One key to price a tab.** Open a stash tab and press F7. The app hovers every item, reads it the way you would (Ctrl+C in the game) and writes each stack's value over it: unit price × quantity, in Divine, Exalted or Chaos.
 - **Total stash value.** Every scanned tab keeps its last result, so the app always shows what each tab and your whole stash are worth, and updates the numbers when prices move.
 - **Finds the stash on its own.** No grid to draw and nothing to calibrate: the stash panel is found in a screenshot of the game, at any resolution (tested from 1280×720 to 3840×2160).
-- **Learns your tabs.** The first scan of a special tab remembers where its slots are, what it looks like and what it holds, and names it (Currency, Essence, Abyss...). After that the tab is recognised whenever you open it, even the look-alike Runes sub-tabs.
+- **Knows the special tabs.** The app comes with a map of every slot of the Currency, Fragments, Expedition, Breach, Abyss, Essence, Delirium, Ritual and all five Runes tabs, so it recognises them whenever you open them (even the look-alike Runes sub-tabs) and reads every slot from the very first scan. A special tab it has no map for is learned on its first scan instead.
 - **Prices follow you around the stash.** Switch tabs and the overlay switches with you: a scanned tab shows its prices again without rescanning.
 - **Always current prices.** Prices come from poe.ninja at start and every 15 minutes. If poe.ninja is down or asks to slow down, the app keeps the last prices and tries again later. When prices changed a tab's value since you scanned it, the overlay says so (e.g. "tab value 189 → 201 div, +6.3%").
 - **Reads counts the game doesn't copy.** A few items (Simulacrum, Triskelion...) copy without a stack size; the app reads the number printed on the icon instead, using digits it learned from your other stacks.
@@ -18,21 +18,23 @@ A small Windows app that scans the special stash tabs of Path of Exile 2 (Curren
 
 ## Supported tabs
 
-The app is made for the **special tabs with fixed slots**, where every item type has its own place. Each one is learned on its first scan and gets a name from the items it holds.
+The app is made for the **special tabs with fixed slots**, where every item type has its own place. The app ships with a map of every slot of each tab below (measured from screenshots and checked by hand), so it knows these tabs from the first scan: every slot is read, whatever is in it, at any supported resolution. Tabs it has no map for are learned on their first scan and named after the items they hold.
 
 | Tab | What it holds | Notes |
 |---|---|---|
 | **Currency** | Orbs, shards, scrolls, etchers, whetstones, flux... | |
-| **Fragments** | Fragments, Simulacrum, Shattered Triskelion... | Its big 2×2 slots are read as one item. Items that copy without a stack size get their count read from the icon. Tested on the *Fragments* sub-tab; the *Tablets* and *Trials* sub-tabs are learned separately if they hold priced items. |
+| **Fragments** | Fragments, Simulacrum, Shattered Triskelion... | Its big 2×2 slots are read as one item. Items that copy without a stack size get their count read from the icon. The *Tablets* and *Trials* sub-tabs are recognised too, see *Paged tabs* below. |
 | **Expedition** | Expedition items, Verisium and alloys | |
-| **Breach** | Breach items | Learned even with a single item in it. |
+| **Breach** | Breach items (Catalysts sub-tab) | The *Wombgifts* sub-tab is recognised too, see *Paged tabs* below. |
 | **Abyss** | Abyssal bones and omens | Named Abyss even though it also holds omens. |
 | **Essence** | Essences | |
 | **Delirium** | Liquid emotions (Liquid Paranoia, Diluted Liquid Ire...) | |
-| **Runes** | 5 look-alike sub-tabs: **Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments** | Each sub-tab is learned and recognised separately. Kalguuran Runes and Ancient Augments get names like "Runes 2" / "Runes 3"; use **Rename** to name them. |
+| **Runes** | 5 look-alike sub-tabs: **Runes, Kalguuran Runes, Soul Cores, Idols, Ancient Augments** | Each sub-tab is recognised separately, by name. |
 | **Ritual** | Omens | |
 
-Each of these was scanned and learned in testing at 2560×1440, from full tabs to a tab with a single item.
+**Paged tabs** (*Fragments: Tablets*, *Fragments: Trials*, *Breach: Wombgifts*) show one of several pages at a time, with buttons that filter what is shown. A scan prices what is on screen, but the result is not saved or added to the total, because one scan can't see the other pages.
+
+The maps come from `tools/layouts/` and `tools/make-layouts.ps1` (see *For developers*).
 
 **Other tabs:**
 
@@ -136,6 +138,8 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 `tools\detect-test.ps1` runs panel detection, slot learning and tab recognition on full-screen stash screenshots in `samples\` without the game, and writes annotated images to `samples\out\`.
 
 Every push and pull request is built on a clean Windows machine by [GitHub Actions](.github/workflows/build.yml); the zip is attached to the run as an artifact. Pushing a version tag (`git tag v1.2.3 && git push origin v1.2.3`) builds the release zip, attests it and attaches it with `SHA256SUMS.txt` to the GitHub release of that tag, creating the release if needed.
+
+`tools\make-layouts.ps1` rebuilds `src\Layouts.json`, the built-in slot maps. It needs one full-screen screenshot per tab in `samples\layouts\NAME.png` (not in the repo); `tools\layouts\NAME.txt` gives the tab's name and fixes what the slot finder gets wrong (see `tools\LayoutTool.cs`). Every slot is drawn and numbered in `samples\layouts\review\` for checking. A new or changed tab (after a game patch) is one screenshot and one spec file.
 
 `tools\make-icon.ps1` redraws `src\app.ico`.
 

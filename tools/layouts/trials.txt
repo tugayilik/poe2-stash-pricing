@@ -1,0 +1,5 @@
+﻿name Fragments: Trials
+kind Fragments
+paged                            # the grid shows one category and page at a time (buttons above it)
+clear                            # the numbered buttons above the grid are category filters, not slots
+grid 37 261 12 8 64.75 64.5 62 62

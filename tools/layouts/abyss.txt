@@ -1,0 +1,14 @@
+﻿name Abyss
+kind Abyss
+# The bone slots form a diamond: rows 1 and 3 at x 297/385/470, row 2 half a slot off at 253/341/428/517.
+# The left ones were found shifted (touching item backgrounds): measured.
+remove 265 330
+remove 355 330
+remove 285 420
+remove 355 420
+remove 270 510
+remove 355 510
+add 297 297 75 75
+add 253 385 75 75
+add 341 385 75 75
+add 297 473 75 75

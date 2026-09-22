@@ -1,0 +1,9 @@
+﻿name Delirium
+kind Delirium
+remove 560 380                   # the slot with 7 was split in two
+remove 600 380
+add 546 354 76 76
+remove 490 690                   # bottom row: two slots found short, set to the row (pitch 93)
+remove 120 690
+add 474 673 75 75
+add 106 673 75 75

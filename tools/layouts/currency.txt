@@ -1,0 +1,12 @@
+name Currency
+kind Currency
+remove 467 660          # a box between the shard row and the flux row
+remove 181 450          # the empty "III" slot of row 5 came out 81x81; re-added below at the common size
+add 180 396 78 72
+add 180 216 78 72       # the empty "III" slot of row 3 was not found
+remove 600 50           # the Jeweller's orbs, top right: found shifted, measured from the frames
+remove 690 50
+remove 770 50
+add 580 36 78 72
+add 661 36 78 72
+add 742 36 78 72

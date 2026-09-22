@@ -1,0 +1,11 @@
+name Kalguuran Runes
+kind Runes
+# Rows of slots 90 px apart; a few were found shifted, so the whole tab is given as rows.
+clear
+grid 160 100 6 2 90 90 76 76
+grid 205 280 5 1 90 0 76 76
+grid 24 378 9 3 90 89 76 76
+remove 420 500                    # the emblem in the middle of the second of those rows is not a slot
+grid 114 657 7 1 90 0 76 76
+grid 24 745 7 1 90 0 76 76
+add 744 745 76 76                 # no slot at 654 in the last row

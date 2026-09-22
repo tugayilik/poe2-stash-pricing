@@ -1,0 +1,10 @@
+name Breach
+kind Breach
+# Catalysts sub-tab. The two slots and the 2x2 slot at the top have faint frames: measured (anything found
+# there is replaced, so they aren't counted twice).
+remove 378 172
+remove 468 172
+remove 422 297
+add 340 134 76 76
+add 430 134 76 76
+add 348 223 148 148
