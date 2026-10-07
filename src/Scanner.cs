@@ -718,8 +718,8 @@ namespace PoeStashPricer
                             Native.MoveMouse(cx + 2, cy + 2);
                             Thread.Sleep(30);
                             Native.MoveMouse(cx, cy);
-                            Thread.Sleep(likely ? Math.Max(90, cfg.HoverDelay * 2) : cfg.HoverDelay);
-                            string txt = CopyHovered(measured ? Math.Max(120, EmptySlotTimeout() * 2) : likely ? Math.Max(250, cfg.CopyTimeout) : cfg.CopyTimeout);
+                            Thread.Sleep(RetryTiming.HoverDelay(cfg.HoverDelay, likely));
+                            string txt = CopyHovered(RetryTiming.CopyTimeout(cfg.CopyTimeout, EmptySlotTimeout(), measured, likely));
                             res.CellsRetried++;
                             if (txt == null) continue;
                             g.Texts[r, c] = txt;
