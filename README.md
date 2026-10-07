@@ -170,3 +170,41 @@ Thank you to everyone who has supported the app. Sponsors of $25 or more who ask
 ## License
 
 [MIT](LICENSE). Not affiliated with or endorsed by Grinding Gear Games or poe.ninja.
+
+## Independent scan exports
+
+A normal user-started scan of an otherwise-unsaved tab creates a new JSON file in
+`%APPDATA%\PoeStashPricer\scan-exports` (the existing per-user settings location).
+Recognized saved tabs keep their existing storage behavior. These independent
+exports do not add unpriced equipment to stash totals. No batch controls, tab
+navigation or additional hotkeys are involved.
+
+The exported league identifies the price table captured when the scan starts,
+also used for the scan value and price timestamp. If another league is selected
+while its prices are still loading, the export keeps the loaded pricing league;
+it does not identify the game character's league.
+
+Each snapshot includes full copied item text, relative positions and sizes,
+quantities (in item text or the saved count), unread-count flags, league, scan and
+price timestamps, app version and scan probe counters. `Quality` is `empty` when
+no items or probes were found, `read` when no known read issue remains, or
+`read-warnings` when all attempted copies failed, no attempted item could be
+parsed, or counts were unread. Unfilled probes can be empty space: their counters
+are preserved without declaring them missing items. Warning snapshots have `Complete: false`; they preserve available
+items but must not be treated as a complete inventory. Even `read`/`empty` cannot
+prove the visual detector found every item. The scan status reports this quality.
+
+Writing uses a temporary file in the same directory, flushed and closed before
+atomic rename to `.json`. Stop requests received by the app (or Esc held down)
+are sampled immediately before that rename: cancellation at that boundary keeps
+no snapshot. Cancellation after the boundary does not retract a finished export.
+Write failures show an error with the destination. No final-name `.json` is
+published on a failed write. A crash or forced termination before publication can
+leave a `.json.tmp` file; it is not a completed export and is never auto-published.
+
+Exports contain game item text and metadata, not automatic diagnostic screenshots.
+They remain local; the app does not upload them. They persist until you manually
+remove them using File Explorer. There is no automatic retention limit. Close the
+app before removing leftover `.tmp` files. **Delete all** resets saved tab profiles,
+saved results and learned digits, but keeps these independent exports (as well as
+league/currency preferences). Remove `scan-exports` manually to erase export history.

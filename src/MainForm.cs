@@ -1436,7 +1436,7 @@ namespace PoeStashPricer
         {
             if (busy) return;
             if (MessageBox.Show(this,
-                    "Delete all saved tabs, scan results and learned digits?\n\nThe app starts over as if freshly installed; tabs are learned again on their first scan (" + ScanKeyName + "). Your league and currency choices are kept.",
+                    "Delete all saved tabs, scan results and learned digits?\n\nThe app starts over as if freshly installed; tabs are learned again on their first scan (" + ScanKeyName + "). Your league and currency choices and independent scan exports are kept.",
                     Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             try
             {
@@ -1458,7 +1458,7 @@ namespace PoeStashPricer
             overlay.ClearContent();
             overlayState = "hidden";
             RefreshAll();
-            SetStatus("Everything deleted. Tabs are learned again on their first scan (" + ScanKeyName + ").");
+            SetStatus("Saved tabs, results and digits deleted; independent scan exports kept. Tabs are learned again on their first scan (" + ScanKeyName + ").");
         }
 
         void DeleteSelectedTab()
@@ -1582,6 +1582,15 @@ namespace PoeStashPricer
                 TabResult tr = ResultStore.FromScan(key, res, cfg.Region);
                 tr.ValueAtScan = ResultStore.Total(tr, t);
                 tr.PricesAtScan = t.LoadedAt;
+                string archivePath = null;
+                if (key == UnknownTab)
+                {
+                    // Keep Stop responsive during serialization and disk writes. The final
+                    // cancellation sample immediately before rename is the completion boundary.
+                    archivePath = await Task.Run(() => ScanArchive.SaveCompleted(tr, t, res,
+                        () => sc.CancelRequested || Native.IsKeyDown(Native.VK_ESCAPE)));
+                    if (archivePath == null) res.Aborted = true;
+                }
                 if (res.Aborted && ResultFor(key) != null)
                 {
                     SetStatus("Scan stopped; the previous result of this tab was kept.");
@@ -1603,7 +1612,10 @@ namespace PoeStashPricer
                     else if (res.CellsTried == 0)
                         status = "No items found in this tab.";
                     if (learnedName != null) status += string.Format(" New tab learned as '{0}' (named after its items; use Rename to change it).", learnedName);
-                    if (key == UnknownTab) status += " This looks like a normal tab, so it is not saved or added to the total stash value.";
+                    if (key == UnknownTab) status += archivePath != null
+                        ? (ScanArchive.Quality(tr, res) == "read-warnings" ? " Scan exported with read warnings: " : " Scan exported: ")
+                            + archivePath + ". Not included in priced stash totals."
+                        : " Cancelled scan was not exported.";
                     int unread = res.Items.Count(i => i.CountUnread);
                     if (unread > 0)
                         status += string.Format(" The count of {0} items could not be read from the screen (shown with \"?\", counted as 1). Digits are learned while scanning (known: {1}); scan other tabs, then rescan this one.",
